@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>สุ่มคำห้ามซ้ำ - Rooms</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>🎲 เกมสุ่มคำแบบห้อง</h1>
+    <p class="sub">ไม่ต้องล็อคอิน ใส่ชื่อแล้วลุย 😈</p>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>สร้างห้อง</h2>
+        <label>ชื่อของมึง</label>
+        <input id="createName" placeholder="เช่น ยังโอม" maxlength="30" />
+        <button id="btnCreate" class="primary">Create Room</button>
+        <p id="createMsg" class="hint"></p>
+      </div>
+
+      <div class="card">
+        <h2>เข้าห้อง</h2>
+        <label>Room Code</label>
+        <input id="joinCode" placeholder="เช่น ABCD2" maxlength="10" />
+        <label>ชื่อของมึง</label>
+        <input id="joinName" placeholder="เช่น ยังโอม" maxlength="30" />
+        <button id="btnJoin" class="primary">Join Room</button>
+        <p id="joinMsg" class="hint"></p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Tip: แชร์ room code ให้เพื่อน แล้วเข้าไปที่หน้าเกม</span>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const $ = (id) => document.getElementById(id);
+
+    function goGame(roomCode) {
+      window.location.href = `/game.html?room=${encodeURIComponent(roomCode)}`;
+    }
+
+    socket.on("room-created", ({ roomCode }) => goGame(roomCode));
+    socket.on("error-msg", ({ message }) => {
+      // โยนไปทั้งสองช่อง
+      $("createMsg").textContent = message;
+      $("joinMsg").textContent = message;
+    });
+
+    $("btnCreate").addEventListener("click", () => {
+      $("createMsg").textContent = "";
+      const name = $("createName").value.trim();
+      if (!name) return $("createMsg").textContent = "ใส่ชื่อก่อนดิไอ้เหี้ย";
+      socket.emit("create-room", { name });
+    });
+
+    $("btnJoin").addEventListener("click", () => {
+      $("joinMsg").textContent = "";
+      const roomCode = $("joinCode").value.trim().toUpperCase();
+      const name = $("joinName").value.trim();
+      if (!roomCode) return $("joinMsg").textContent = "ใส่โค้ดห้องก่อนดิ";
+      if (!name) return $("joinMsg").textContent = "ใส่ชื่อก่อนดิ";
+      // เก็บ name ไว้ใน sessionStorage ให้หน้าเกมดึงไปใช้
+      sessionStorage.setItem("twg_name", name);
+      socket.emit("join-room", { roomCode, name });
+      // ถ้า joined สำเร็จ เดี๋ยวหน้าเกมค่อย redirect (กันกรณี error)
+      // แต่เราจะ redirect เลยก็ได้ เพราะ socket same origin — เอาแบบชัวร์ค่อยย้าย
+      setTimeout(() => goGame(roomCode), 150);
+    });
+  </script>
+</body>
+</html>
