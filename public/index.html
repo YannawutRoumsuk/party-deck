@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>สุ่มคำห้ามซ้ำ - Rooms</title>
+  <title>คำต้องห้าม - Rooms</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <div class="container">
-    <h1>🎲 เกมสุ่มคำแบบห้อง</h1>
-    <p class="sub">ไม่ต้องล็อคอิน ใส่ชื่อแล้วลุย 😈</p>
+    <h1>🎲 เกมคำต้องห้าม</h1>
+    <p class="sub">ไม่ต้องล็อคอิน ใส่ชื่อแล้วสร้างห้องได้เลย 😈</p>
 
     <div class="grid2">
       <div class="card">
         <h2>สร้างห้อง</h2>
-        <label>ชื่อของมึง</label>
-        <input id="createName" placeholder="เช่น ยังโอม" maxlength="30" />
+        <label>ชื่อของเอ็งอะ</label>
+        <input id="createName" placeholder="เช่น อภิญญา รักษี, ขข" maxlength="30" />
         <button id="btnCreate" class="primary">Create Room</button>
         <p id="createMsg" class="hint"></p>
       </div>
@@ -24,8 +24,8 @@
         <h2>เข้าห้อง</h2>
         <label>Room Code</label>
         <input id="joinCode" placeholder="เช่น ABCD2" maxlength="10" />
-        <label>ชื่อของมึง</label>
-        <input id="joinName" placeholder="เช่น ยังโอม" maxlength="30" />
+        <label>ชื่อแกอะ</label>
+        <input id="joinName" placeholder="เช่น อภิญญา รักษี, ขข" maxlength="30" />
         <button id="btnJoin" class="primary">Join Room</button>
         <p id="joinMsg" class="hint"></p>
       </div>
@@ -56,7 +56,7 @@
     $("btnCreate").addEventListener("click", () => {
       $("createMsg").textContent = "";
       const name = $("createName").value.trim();
-      if (!name) return $("createMsg").textContent = "ใส่ชื่อก่อนดิไอ้เหี้ย";
+      if (!name) return $("createMsg").textContent = "ใส่ชื่อก่อนดิเห้ย";
       socket.emit("create-room", { name });
     });
 
@@ -64,8 +64,8 @@
       $("joinMsg").textContent = "";
       const roomCode = $("joinCode").value.trim().toUpperCase();
       const name = $("joinName").value.trim();
-      if (!roomCode) return $("joinMsg").textContent = "ใส่โค้ดห้องก่อนดิ";
-      if (!name) return $("joinMsg").textContent = "ใส่ชื่อก่อนดิ";
+      if (!roomCode) return $("joinMsg").textContent = "ใส่โค้ดห้องก่อนน้าา";
+      if (!name) return $("joinMsg").textContent = "ใส่ชื่อด้วยจ้าาาาาา";
       // เก็บ name ไว้ใน sessionStorage ให้หน้าเกมดึงไปใช้
       sessionStorage.setItem("twg_name", name);
       socket.emit("join-room", { roomCode, name });

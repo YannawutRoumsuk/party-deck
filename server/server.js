@@ -10,14 +10,34 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
+const ROOM_EMPTY_TTL_MS = 2 * 60 * 1000;
 
 // serve static
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 // in-memory rooms
 // rooms: Map roomCode -> room
-// room = { code, hostId, users: Map(socketId -> {name, word, assigned}), round: {running, endsAt, durationMs}, timer }
+// room = { code, hostId, users: Map(socketId -> {name, word, assigned}), round: {running, paused, endsAt, durationMs, remainingMs}, timer, emptyTimer }
 const rooms = new Map();
+
+function scheduleRoomCleanup(roomCode) {
+  const room = rooms.get(roomCode);
+  if (!room || room.users.size > 0) return;
+
+  if (room.emptyTimer) clearTimeout(room.emptyTimer);
+  room.emptyTimer = setTimeout(() => {
+    const latest = rooms.get(roomCode);
+    if (!latest || latest.users.size > 0) return;
+    rooms.delete(roomCode);
+  }, ROOM_EMPTY_TTL_MS);
+}
+
+function clearRoomCleanup(room) {
+  if (room.emptyTimer) {
+    clearTimeout(room.emptyTimer);
+    room.emptyTimer = null;
+  }
+}
 
 function roomPublicState(room) {
   const users = [...room.users.entries()].map(([id, u]) => ({
@@ -50,7 +70,9 @@ function safeEndRound(roomCode, reason = "timeup") {
   }
 
   room.round.running = false;
+  room.round.paused = false;
   room.round.endsAt = null;
+  room.round.remainingMs = null;
 
   io.to(roomCode).emit("round-ended", { reason });
 
@@ -59,6 +81,49 @@ function safeEndRound(roomCode, reason = "timeup") {
     u.word = null;
     u.assigned = null;
   }
+
+  broadcastRoomState(roomCode);
+}
+
+function pauseRound(roomCode) {
+  const room = rooms.get(roomCode);
+  if (!room || room.round.paused) return;
+
+  if (room.timer) {
+    clearTimeout(room.timer);
+    room.timer = null;
+  }
+
+  const remaining = room.round.endsAt
+    ? Math.max(0, room.round.endsAt - Date.now())
+    : Math.max(0, room.round.remainingMs || 0);
+
+  room.round.paused = true;
+  room.round.remainingMs = remaining;
+  room.round.endsAt = null;
+
+  io.to(roomCode).emit("round-paused", { remainingMs: remaining });
+  broadcastRoomState(roomCode);
+}
+
+function resumeRound(roomCode) {
+  const room = rooms.get(roomCode);
+  if (!room || !room.round.paused) return;
+
+  const remaining = Math.max(0, room.round.remainingMs || 0);
+  if (remaining <= 0) {
+    safeEndRound(roomCode, "timeup");
+    return;
+  }
+
+  room.round.paused = false;
+  room.round.endsAt = Date.now() + remaining;
+
+  io.to(roomCode).emit("round-resumed", { endsAt: room.round.endsAt, remainingMs: remaining });
+
+  room.timer = setTimeout(() => {
+    safeEndRound(roomCode, "timeup");
+  }, remaining);
 
   broadcastRoomState(roomCode);
 }
@@ -98,8 +163,9 @@ io.on("connection", (socket) => {
       code,
       hostId: socket.id,
       users: new Map(),
-      round: { running: false, endsAt: null, durationMs: 60000 },
-      timer: null
+      round: { running: false, paused: false, endsAt: null, durationMs: 60000, remainingMs: null },
+      timer: null,
+      emptyTimer: null
     };
 
     room.users.set(socket.id, { name: trimmed, word: null, assigned: null });
@@ -126,6 +192,8 @@ io.on("connection", (socket) => {
       return;
     }
 
+    clearRoomCleanup(room);
+
     // กันชื่อซ้ำแบบง่ายๆ: ถ้าซ้ำให้เติมท้าย
     let finalName = trimmed;
     const existingNames = new Set([...room.users.values()].map((u) => u.name));
@@ -136,6 +204,9 @@ io.on("connection", (socket) => {
     }
 
     room.users.set(socket.id, { name: finalName, word: null, assigned: null });
+    if (!room.users.has(room.hostId)) {
+      room.hostId = socket.id;
+    }
     socket.join(code);
 
     socket.emit("joined", { roomCode: code, yourId: socket.id });
@@ -203,7 +274,9 @@ io.on("connection", (socket) => {
     }
 
     room.round.running = true;
+    room.round.paused = false;
     room.round.endsAt = Date.now() + finalDuration;
+    room.round.remainingMs = finalDuration;
 
     // ส่งผลแบบ personal: แต่ละคนเห็นของคนอื่น ยกเว้นตัวเอง
     sendPersonalResults(code);
@@ -220,6 +293,28 @@ io.on("connection", (socket) => {
     }, finalDuration);
 
     broadcastRoomState(code);
+  });
+
+  // ---- PAUSE/RESUME (HOST) ----
+  socket.on("toggle-pause", ({ roomCode }) => {
+    const code = String(roomCode || "").trim().toUpperCase();
+    const room = rooms.get(code);
+    if (!room) return;
+
+    if (socket.id !== room.hostId) {
+      socket.emit("error-msg", { message: "Only host can pause/resume." });
+      return;
+    }
+    if (!room.round.running) {
+      socket.emit("error-msg", { message: "Round not running." });
+      return;
+    }
+
+    if (room.round.paused) {
+      resumeRound(code);
+    } else {
+      pauseRound(code);
+    }
   });
 
   // ---- RESET (HOST) ----
@@ -248,7 +343,7 @@ io.on("connection", (socket) => {
     // ถ้าห้องว่าง -> ลบทิ้ง
     if (room.users.size === 0) {
       if (room.timer) clearTimeout(room.timer);
-      rooms.delete(code);
+      scheduleRoomCleanup(code);
       return;
     }
 
@@ -277,7 +372,7 @@ io.on("connection", (socket) => {
 
       if (room.users.size === 0) {
         if (room.timer) clearTimeout(room.timer);
-        rooms.delete(code);
+        scheduleRoomCleanup(code);
         continue;
       }
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>สุ่มคำ - Game</title>
+  <title>คำต้องห้าม - Game</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -11,7 +11,7 @@
     <div class="topbar">
       <div>
         <h1>ห้อง <span id="roomCode">-</span></h1>
-        <div class="sub">ชื่อมึง: <b id="yourName">-</b> <span id="hostBadge" class="badge"></span></div>
+        <div class="sub">ชื่อของเอ็งอะ: <b id="yourName">-</b> <span id="hostBadge" class="badge"></span></div>
       </div>
       <div class="right">
         <div class="timer">
@@ -26,14 +26,14 @@
         <h2>ผู้เล่น</h2>
         <div id="players" class="list"></div>
         <div class="row">
-          <button id="btnLeave" class="ghost">ออกห้อง</button>
+          <button id="btnLeave" class="ghost">ออกจากห้อง</button>
         </div>
       </div>
 
       <div class="card">
-        <h2>ใส่คำของมึง</h2>
-        <p class="hint">คำนี้จะถูกเอาไปสุ่มให้คนอื่น (มึงห้ามได้คำตัวเอง)</p>
-        <input id="wordInput" placeholder="เช่น แฟนเก่า / รถเมล์ / ข้าวมันไก่" maxlength="40" />
+        <h2>ใส่คำ ที่ต้องการ </h2>
+        <p class="hint">คำนี้จะถูกเอาไปสุ่มให้คนอื่น</p>
+        <input id="wordInput" placeholder="เช่น กิน / รถ / ไก่" maxlength="40" />
         <div class="row">
           <button id="btnSubmit" class="primary">ส่งคำ</button>
           <span id="wordStatus" class="hint"></span>
@@ -43,11 +43,12 @@
 
         <div class="row">
           <label class="hint">เวลารอบ (วินาที)</label>
-          <input id="durationSec" type="number" min="10" max="300" value="60" style="max-width:120px" />
+          <input id="durationMin" type="number" min="1" max="5" value="1" style="max-width:120px" />
         </div>
 
         <div class="row">
           <button id="btnStart" class="primary">Start Round (Host)</button>
+          <button id="btnPause" class="secondary">Pause (Host)</button>
           <button id="btnReset" class="danger">Reset (Host)</button>
         </div>
 
@@ -56,9 +57,15 @@
     </div>
 
     <div class="card">
-      <h2>ผลรวม (มึงจะไม่เห็นคำของตัวเอง)</h2>
+      <h2>รายชื่อคำของแต่ละผู้เล่น</h2>
       <div id="results" class="results"></div>
-      <p class="hint">คนอื่นจะเห็นคำของมึง แต่ตัวมึงไม่เห็นของตัวเอง — ตามกติกา 😈</p>
+      <p class="hint">คำที่คุณส่งไปจะถูกสุ่มให้ผู้เล่นคนอื่น และคุณจะไม่สามารถเห็นคำที่คุณได้รับจากการสุ่ม — ตามกฏ 😈</p>
+    </div>
+
+    <div class="card">
+      <h2>คำแนะนำ</h2>
+      <div id="results" class="results"></div>
+      <p class="hint">ควรกำหนด กติกาให้ชัดเจนก่อนเริ่มใส่คำ เช่น 1พยางค์ทุกคน / คำกริยาทั้งหมด  </p>
     </div>
 
   </div>

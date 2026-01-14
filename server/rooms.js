@@ -26,12 +26,12 @@ function shuffle(arr) {
  */
 function assignWordsNoSelf(usersMap) {
   const ids = [...usersMap.keys()];
-  if (ids.length < 2) throw new Error("Need at least 2 players.");
+  if (ids.length < 2) throw new Error("ต้องมีผู้เล่นอย่างน้อย 2 คน");
 
   const words = ids.map((id) => usersMap.get(id).word);
 
   if (words.some((w) => !w || !String(w).trim())) {
-    throw new Error("All players must submit a word.");
+    throw new Error("ผู้เล่นทุกคนต้องส่งคำก่อนเริ่มรอบ");
   }
 
   // ถ้ามีแค่ 2 คน แล้วดันส่งคำเหมือนกัน = มันจะเท่ากับได้คำตัวเอง (เพราะคำตัวเอง == คำอีกคน)
@@ -40,7 +40,7 @@ function assignWordsNoSelf(usersMap) {
   if (ids.length === 2) {
     const a = usersMap.get(ids[0]).word.trim();
     const b = usersMap.get(ids[1]).word.trim();
-    if (a === b) throw new Error("With 2 players, words must be different.");
+    if (a === b) throw new Error("ผู้เล่น 2 คนที่มีคำเหมือนกัน ต้องเปลี่ยนคำใหม่ก่อนเริ่มรอบ");
   }
 
   // สุ่มคำให้เป็น permutation ที่ไม่มี fixed point (derangement แบบง่าย)
@@ -67,7 +67,7 @@ function assignWordsNoSelf(usersMap) {
     }
   }
 
-  throw new Error("Cannot assign words without self-match. Try different words.");
+  throw new Error("ไม่สามารถสุ่มคำใหม่ได้ ลองเปลี่ยนคำใหม่แล้วเริ่มรอบอีกครั้ง");
 }
 
 module.exports = {

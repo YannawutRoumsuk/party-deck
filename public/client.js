@@ -9,16 +9,29 @@ function getRoomFromQuery() {
 
 const roomCode = getRoomFromQuery();
 $("roomCode").textContent = roomCode || "-";
+const durationInput = $("durationMin");
+if (durationInput && durationInput.previousElementSibling) {
+  durationInput.previousElementSibling.textContent = "Round time (minutes)";
+}
 
 let yourName = sessionStorage.getItem("twg_name") || "";
 let yourId = null;
 let hostId = null;
+let roundPaused = false;
+let yourHasWord = false;
 
 let endsAt = null;
 let tickTimer = null;
 
 function setMsg(t) { $("msg").textContent = t || ""; }
 function setWordStatus(t) { $("wordStatus").textContent = t || ""; }
+function setWordStatusAnimated(t) {
+  const el = $("wordStatus");
+  el.textContent = t || "";
+  el.classList.remove("flash");
+  void el.offsetWidth;
+  el.classList.add("flash");
+}
 
 function fmtTime(ms) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -30,6 +43,10 @@ function fmtTime(ms) {
 function startTick() {
   if (tickTimer) clearInterval(tickTimer);
   tickTimer = setInterval(() => {
+    if (roundPaused) {
+      $("timerText").textContent = "PAUSED";
+      return;
+    }
     if (!endsAt) {
       $("timerText").textContent = "--:--";
       return;
@@ -48,6 +65,7 @@ function renderPlayers(state) {
 
   const isHost = yourId && hostId === yourId;
   $("hostBadge").textContent = isHost ? "HOST" : "";
+  roundPaused = !!state.round?.paused;
 
   const wrap = $("players");
   wrap.innerHTML = "";
@@ -55,7 +73,7 @@ function renderPlayers(state) {
     const div = document.createElement("div");
     div.className = "player";
     const left = document.createElement("div");
-    left.textContent = u.name + (u.id === yourId ? " (มึง)" : "");
+    left.textContent = u.name + (u.id === yourId ? " (คุณ)" : "");
     const right = document.createElement("div");
     right.innerHTML = `
       <span class="badge">${u.hasWord ? "พร้อม" : "ยังไม่ส่งคำ"}</span>
@@ -66,9 +84,14 @@ function renderPlayers(state) {
     wrap.appendChild(div);
   });
 
+  const me = state.users.find((u) => u.id === yourId);
+  yourHasWord = !!me?.hasWord;
+
   // ปุ่ม host enable/disable
-  $("btnStart").disabled = !isHost;
+  $("btnStart").disabled = !!state.round?.running;
   $("btnReset").disabled = !isHost;
+  $("btnPause").disabled = !isHost || !state.round?.running;
+  $("btnPause").textContent = roundPaused ? "Resume (Host)" : "Pause (Host)";
 }
 
 function renderResults(payload) {
@@ -100,10 +123,10 @@ function ensureJoin() {
     return;
   }
   if (!yourName) {
-    yourName = prompt("ใส่ชื่อของมึงหน่อย") || "";
+    yourName = prompt("ใส่ชื่อของคุณหน่อย") || "";
     yourName = yourName.trim();
     if (!yourName) {
-      setMsg("ไม่ใส่ชื่อก็เล่นไม่ได้ไอ้เหี้ย");
+      setMsg("ไม่ใส่ชื่อก็เล่นไม่ได้นะจ๊ะหนู");
       return;
     }
     sessionStorage.setItem("twg_name", yourName);
@@ -120,14 +143,31 @@ socket.on("joined", ({ yourId: id }) => {
 socket.on("room-state", (state) => {
   renderPlayers(state);
 
+  roundPaused = !!state.round?.paused;
   if (state.round?.running && state.round?.endsAt) {
     endsAt = state.round.endsAt;
   } else {
     endsAt = null;
   }
+  startTick();
+});
+
+socket.on("round-paused", () => {
+  roundPaused = true;
+  endsAt = null;
+  setMsg("Round paused.");
+  startTick();
+});
+
+socket.on("round-resumed", ({ endsAt: e }) => {
+  roundPaused = false;
+  endsAt = e;
+  setMsg("Round resumed.");
+  startTick();
 });
 
 socket.on("round-started", ({ endsAt: e }) => {
+  roundPaused = false;
   endsAt = e;
   setMsg("เริ่มแล้วไอ้สัส! 🤝");
   startTick();
@@ -139,6 +179,7 @@ socket.on("result", (payload) => {
 });
 
 socket.on("round-ended", ({ reason }) => {
+  roundPaused = false;
   endsAt = null;
   startTick();
   $("results").innerHTML = "";
@@ -158,13 +199,28 @@ $("btnSubmit").addEventListener("click", () => {
   const word = $("wordInput").value.trim();
   if (!word) return setWordStatus("ส่งคำก่อนดิ");
   socket.emit("submit-word", { roomCode, word });
+  setWordStatusAnimated(yourHasWord ? "Changed word." : "Word submitted.");
+  yourHasWord = true;
+  return;
   setWordStatus("ส่งแล้ว ✅");
 });
 
 $("btnStart").addEventListener("click", () => {
-  const sec = Number($("durationSec").value);
-  const durationMs = Math.max(10, Math.min(sec || 60, 300)) * 1000;
+  if (!yourId || hostId !== yourId) {
+    setMsg("Only host can start the round.");
+    return;
+  }
+  const min = Number($("durationMin").value);
+  const durationMs = Math.max(1, Math.min(min || 1, 5)) * 60 * 1000;
   socket.emit("start-round", { roomCode, durationMs });
+});
+
+$("btnPause").addEventListener("click", () => {
+  if (!yourId || hostId !== yourId) {
+    setMsg("Only host can pause/resume.");
+    return;
+  }
+  socket.emit("toggle-pause", { roomCode });
 });
 
 $("btnReset").addEventListener("click", () => {
