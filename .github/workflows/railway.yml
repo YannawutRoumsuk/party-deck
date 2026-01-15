@@ -9,12 +9,20 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
-      - name: Deploy
-        uses: railwayapp/railway-action@v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          railwayToken: ddbef286-2805-49ec-9c83-bdc4708d88d9
-          projectId: 1074c967-78fa-46bf-a80f-00cdb33e05fa
-          serviceId: production
+          node-version: 22
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: railway up --service Forbidden-Word --environment production
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
