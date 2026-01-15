@@ -60,6 +60,62 @@ function startTick() {
   }, 250);
 }
 
+function getUserNameById(state, id) {
+  const u = (state.users || []).find((x) => x.id === id);
+  return u ? u.name : "-";
+}
+
+function renderResultsList(list) {
+  const wrap = $("results");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  (list || []).forEach((x) => {
+    const card = document.createElement("div");
+    card.className = "result-card";
+    card.innerHTML = `
+      <div class="result-name">${x.name} ได้คำว่า</div>
+      <div class="result-word">${escapeHtml(x.word)}</div>
+    `;
+    wrap.appendChild(card);
+  });
+}
+
+function renderScoreboard(state) {
+  const wrap = $("scoreboard");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  (state.users || []).forEach((u) => {
+    const row = document.createElement("div");
+    row.className = `score-row${u.roundLost ? " lost" : ""}`;
+    const left = document.createElement("div");
+    left.textContent = u.name + (u.id === yourId ? " (คุณ)" : "");
+    const right = document.createElement("div");
+    right.className = "score-right";
+
+    const total = document.createElement("span");
+    total.className = "badge";
+    total.textContent = `รวม ${u.score || 0}`;
+
+    const round = document.createElement("span");
+    round.className = "badge";
+    round.textContent = `รอบนี้ +${u.roundScore || 0}`;
+
+    right.appendChild(total);
+    right.appendChild(round);
+
+    if (u.roundLost) {
+      const lostBadge = document.createElement("span");
+      lostBadge.className = "badge badge-danger";
+      lostBadge.textContent = "แพ้";
+      right.appendChild(lostBadge);
+    }
+
+    row.appendChild(left);
+    row.appendChild(right);
+    wrap.appendChild(row);
+  });
+}
+
 function renderPlayers(state) {
   hostId = state.hostId;
 
@@ -71,14 +127,93 @@ function renderPlayers(state) {
   wrap.innerHTML = "";
   state.users.forEach((u) => {
     const div = document.createElement("div");
-    div.className = "player";
+    div.className = `player${u.roundLost ? " lost" : ""}`;
+
     const left = document.createElement("div");
     left.textContent = u.name + (u.id === yourId ? " (คุณ)" : "");
+
     const right = document.createElement("div");
-    right.innerHTML = `
-      <span class="badge">${u.hasWord ? "พร้อม" : "ยังไม่ส่งคำ"}</span>
-      ${u.id === state.hostId ? `<span class="badge">โฮสต์</span>` : ""}
-    `;
+    right.className = "player-right";
+
+    const badges = document.createElement("div");
+    badges.className = "player-badges";
+
+    const wordBadge = document.createElement("span");
+    wordBadge.className = "badge";
+    wordBadge.textContent = u.hasWord ? "พร้อม" : "ยังไม่ส่งคำ";
+    badges.appendChild(wordBadge);
+
+    if (u.id === state.hostId) {
+      const hostBadge = document.createElement("span");
+      hostBadge.className = "badge";
+      hostBadge.textContent = "โฮสต์";
+      badges.appendChild(hostBadge);
+    }
+
+    if (u.roundLost) {
+      const lostBadge = document.createElement("span");
+      lostBadge.className = "badge badge-danger";
+      const winnerName = u.lostBy ? getUserNameById(state, u.lostBy) : "";
+      lostBadge.textContent = winnerName ? `แพ้โดย ${winnerName}` : "แพ้";
+      badges.appendChild(lostBadge);
+    }
+
+    right.appendChild(badges);
+
+    if (isHost) {
+      const actions = document.createElement("div");
+      actions.className = "player-actions";
+
+      const kickBtn = document.createElement("button");
+      kickBtn.className = "ghost mini";
+      kickBtn.textContent = "นำออก";
+      kickBtn.disabled = u.id === yourId;
+      kickBtn.addEventListener("click", () => {
+        if (u.id === yourId) return;
+        if (confirm(`นำ ${u.name} ออกจากห้อง?`)) {
+          socket.emit("kick-player", { roomCode, targetId: u.id });
+        }
+      });
+
+      actions.appendChild(kickBtn);
+
+      const canMarkLoss = !!state.round?.running && !u.roundLost;
+      const winnerSelect = document.createElement("select");
+      winnerSelect.className = "mini-select";
+      (state.users || []).forEach((p) => {
+        if (p.id === u.id) return;
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.name + (p.id === yourId ? " (คุณ)" : "");
+        winnerSelect.appendChild(opt);
+      });
+
+      const hasWinnerOptions = winnerSelect.options.length > 0;
+      if (hasWinnerOptions) {
+        const defaultWinner = state.hostId !== u.id ? state.hostId : winnerSelect.options[0].value;
+        winnerSelect.value = defaultWinner;
+      }
+
+      winnerSelect.disabled = !canMarkLoss || !hasWinnerOptions;
+
+      const lossBtn = document.createElement("button");
+      lossBtn.className = "danger mini";
+      lossBtn.textContent = u.roundLost ? "แพ้แล้ว" : "ให้แพ้";
+      lossBtn.disabled = !canMarkLoss || !hasWinnerOptions;
+      lossBtn.addEventListener("click", () => {
+        const winnerId = winnerSelect.value;
+        if (!winnerId) return;
+        socket.emit("mark-loss", { roomCode, loserId: u.id, winnerId });
+      });
+
+      if (hasWinnerOptions) {
+        actions.appendChild(winnerSelect);
+        actions.appendChild(lossBtn);
+      }
+
+      right.appendChild(actions);
+    }
+
     div.appendChild(left);
     div.appendChild(right);
     wrap.appendChild(div);
@@ -88,24 +223,20 @@ function renderPlayers(state) {
   yourHasWord = !!me?.hasWord;
 
   // ปุ่ม host enable/disable
-  $("btnStart").disabled = !!state.round?.running;
-  $("btnReset").disabled = !isHost;
-  $("btnPause").disabled = !isHost || !state.round?.running;
-  $("btnPause").textContent = roundPaused ? "เล่นต่อ (โฮสต์)" : "หยุดชั่วคราว (โฮสต์)";
+  const btnStart = $("btnStart");
+  const btnReset = $("btnReset");
+  const btnPause = $("btnPause");
+  const btnEndGame = $("btnEndGame");
+
+  if (btnStart) btnStart.disabled = !!state.round?.running;
+  if (btnReset) btnReset.disabled = !isHost;
+  if (btnPause) btnPause.disabled = !isHost || !state.round?.running;
+  if (btnPause) btnPause.textContent = roundPaused ? "เล่นต่อ (โฮสต์)" : "หยุดชั่วคราว (โฮสต์)";
+  if (btnEndGame) btnEndGame.disabled = !isHost || !state.round?.running;
 }
 
 function renderResults(payload) {
-  const wrap = $("results");
-  wrap.innerHTML = "";
-  (payload.others || []).forEach((x) => {
-    const card = document.createElement("div");
-    card.className = "result-card";
-    card.innerHTML = `
-      <div class="result-name">${x.name} ได้คำว่า</div>
-      <div class="result-word">${escapeHtml(x.word)}</div>
-    `;
-    wrap.appendChild(card);
-  });
+  renderResultsList(payload.others || []);
 }
 
 function escapeHtml(str) {
@@ -142,6 +273,7 @@ socket.on("joined", ({ yourId: id }) => {
 
 socket.on("room-state", (state) => {
   renderPlayers(state);
+  renderScoreboard(state);
 
   roundPaused = !!state.round?.paused;
   if (state.round?.running && state.round?.endsAt) {
@@ -178,17 +310,28 @@ socket.on("result", (payload) => {
   renderResults(payload);
 });
 
+socket.on("results-reveal", ({ results }) => {
+  renderResultsList(results || []);
+});
+
 socket.on("round-ended", ({ reason }) => {
   roundPaused = false;
   endsAt = null;
   startTick();
-  $("results").innerHTML = "";
+  const keepResults = reason === "timeup" || reason === "endgame";
+  if (!keepResults) $("results").innerHTML = "";
   setWordStatus("");
   setMsg(
     reason === "timeup" ? "หมดเวลา กรุณาใส่คำใหม่แล้วเริ่มรอบถัดไป" :
     reason === "reset" ? "รีเซ็ตแล้ว กรุณาใส่คำใหม่" :
+    reason === "endgame" ? "จบเกมแล้ว สามารถใส่คำใหม่เพื่อเริ่มรอบถัดไปได้" :
     "จบรอบเนื่องจากมีผู้เล่นออกจากห้อง"
   );
+});
+
+socket.on("kicked", () => {
+  alert("คุณถูกนำออกจากห้อง");
+  window.location.href = "/";
 });
 
 socket.on("error-msg", ({ message }) => {
@@ -226,6 +369,13 @@ $("btnPause").addEventListener("click", () => {
 $("btnReset").addEventListener("click", () => {
   socket.emit("reset-round", { roomCode });
 });
+
+const endGameBtn = $("btnEndGame");
+if (endGameBtn) {
+  endGameBtn.addEventListener("click", () => {
+    socket.emit("end-game", { roomCode });
+  });
+}
 
 $("btnLeave").addEventListener("click", () => {
   socket.emit("leave-room", { roomCode });

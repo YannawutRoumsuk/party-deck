@@ -43,7 +43,11 @@ function roomPublicState(room) {
   const users = [...room.users.entries()].map(([id, u]) => ({
     id,
     name: u.name,
-    hasWord: !!(u.word && String(u.word).trim())
+    hasWord: !!(u.word && String(u.word).trim()),
+    score: u.score || 0,
+    roundScore: u.roundScore || 0,
+    roundLost: !!u.roundLost,
+    lostBy: u.lostBy || null
   }));
 
   return {
@@ -54,13 +58,33 @@ function roomPublicState(room) {
   };
 }
 
-function broadcastRoomState(roomCode) {
-  const room = rooms.get(roomCode);
-  if (!room) return;
-  io.to(roomCode).emit("room-state", roomPublicState(room));
+function buildResults(room) {
+  return [...room.users.values()].map((u) => ({
+    name: u.name,
+    word: u.assigned || "-"
+  }));
 }
 
-function safeEndRound(roomCode, reason = "timeup") {
+function resetRoundState(room, { updateScores = false, resetScores = false } = {}) {
+  for (const u of room.users.values()) {
+    const winPoints = Number(u.roundScore || 0);
+    if (updateScores && room.round.running) {
+      if (!u.roundLost) {
+        u.score = (u.score || 0) + 1 + winPoints;
+      }
+    }
+    if (resetScores) {
+      u.score = 0;
+    }
+    u.roundScore = 0;
+    u.roundLost = false;
+    u.lostBy = null;
+    u.word = null;
+    u.assigned = null;
+  }
+}
+
+function endRound(roomCode, reason, { revealAll = false, updateScores = false, resetScores = false } = {}) {
   const room = rooms.get(roomCode);
   if (!room) return;
 
@@ -69,21 +93,27 @@ function safeEndRound(roomCode, reason = "timeup") {
     room.timer = null;
   }
 
+  if (revealAll && room.round.running) {
+    io.to(roomCode).emit("results-reveal", { results: buildResults(room) });
+  }
+
+  resetRoundState(room, { updateScores, resetScores });
+
   room.round.running = false;
   room.round.paused = false;
   room.round.endsAt = null;
   room.round.remainingMs = null;
 
   io.to(roomCode).emit("round-ended", { reason });
-
-  // reset words for new round
-  for (const u of room.users.values()) {
-    u.word = null;
-    u.assigned = null;
-  }
-
   broadcastRoomState(roomCode);
 }
+
+function broadcastRoomState(roomCode) {
+  const room = rooms.get(roomCode);
+  if (!room) return;
+  io.to(roomCode).emit("room-state", roomPublicState(room));
+}
+
 
 function pauseRound(roomCode) {
   const room = rooms.get(roomCode);
@@ -112,7 +142,7 @@ function resumeRound(roomCode) {
 
   const remaining = Math.max(0, room.round.remainingMs || 0);
   if (remaining <= 0) {
-    safeEndRound(roomCode, "timeup");
+    endRound(roomCode, "timeup", { revealAll: true, updateScores: true });
     return;
   }
 
@@ -122,7 +152,7 @@ function resumeRound(roomCode) {
   io.to(roomCode).emit("round-resumed", { endsAt: room.round.endsAt, remainingMs: remaining });
 
   room.timer = setTimeout(() => {
-    safeEndRound(roomCode, "timeup");
+    endRound(roomCode, "timeup", { revealAll: true, updateScores: true });
   }, remaining);
 
   broadcastRoomState(roomCode);
@@ -168,7 +198,15 @@ io.on("connection", (socket) => {
       emptyTimer: null
     };
 
-    room.users.set(socket.id, { name: trimmed, word: null, assigned: null });
+    room.users.set(socket.id, {
+      name: trimmed,
+      word: null,
+      assigned: null,
+      score: 0,
+      roundScore: 0,
+      roundLost: false,
+      lostBy: null
+    });
     rooms.set(code, room);
 
     socket.join(code);
@@ -203,7 +241,15 @@ io.on("connection", (socket) => {
       finalName = `${finalName}${i}`;
     }
 
-    room.users.set(socket.id, { name: finalName, word: null, assigned: null });
+    room.users.set(socket.id, {
+      name: finalName,
+      word: null,
+      assigned: null,
+      score: 0,
+      roundScore: 0,
+      roundLost: false,
+      lostBy: null
+    });
     if (!room.users.has(room.hostId)) {
       room.hostId = socket.id;
     }
@@ -267,6 +313,11 @@ io.on("connection", (socket) => {
     room.round.durationMs = finalDuration;
 
     try {
+      for (const u of room.users.values()) {
+        u.roundScore = 0;
+        u.roundLost = false;
+        u.lostBy = null;
+      }
       assignWordsNoSelf(room.users);
     } catch (e) {
       socket.emit("error-msg", { message: e.message || "Cannot start round." });
@@ -289,10 +340,28 @@ io.on("connection", (socket) => {
 
     // set timer
     room.timer = setTimeout(() => {
-      safeEndRound(code, "timeup");
+      endRound(code, "timeup", { revealAll: true, updateScores: true });
     }, finalDuration);
 
     broadcastRoomState(code);
+  });
+
+  // ---- END GAME (HOST) ----
+  socket.on("end-game", ({ roomCode }) => {
+    const code = String(roomCode || "").trim().toUpperCase();
+    const room = rooms.get(code);
+    if (!room) return;
+
+    if (socket.id !== room.hostId) {
+      socket.emit("error-msg", { message: "Only host can end the game." });
+      return;
+    }
+    if (!room.round.running) {
+      socket.emit("error-msg", { message: "Round not running." });
+      return;
+    }
+
+    endRound(code, "endgame", { revealAll: true, updateScores: true });
   });
 
   // ---- PAUSE/RESUME (HOST) ----
@@ -328,7 +397,76 @@ io.on("connection", (socket) => {
       return;
     }
 
-    safeEndRound(code, "reset");
+    endRound(code, "reset", { resetScores: true });
+  });
+
+  // ---- MARK LOSS (HOST) ----
+  socket.on("mark-loss", ({ roomCode, loserId, winnerId }) => {
+    const code = String(roomCode || "").trim().toUpperCase();
+    const room = rooms.get(code);
+    if (!room) return;
+
+    if (socket.id !== room.hostId) {
+      socket.emit("error-msg", { message: "Only host can mark loss." });
+      return;
+    }
+    if (!room.round.running) {
+      socket.emit("error-msg", { message: "Round not running." });
+      return;
+    }
+    if (!room.users.has(loserId) || !room.users.has(winnerId)) return;
+    if (loserId === winnerId) {
+      socket.emit("error-msg", { message: "Winner and loser must be different." });
+      return;
+    }
+
+    const loser = room.users.get(loserId);
+    if (loser.roundLost) return;
+    loser.roundLost = true;
+    loser.lostBy = winnerId;
+
+    const winner = room.users.get(winnerId);
+    winner.roundScore = (winner.roundScore || 0) + 1;
+
+    broadcastRoomState(code);
+  });
+
+  // ---- KICK PLAYER (HOST) ----
+  socket.on("kick-player", ({ roomCode, targetId }) => {
+    const code = String(roomCode || "").trim().toUpperCase();
+    const room = rooms.get(code);
+    if (!room) return;
+
+    if (socket.id !== room.hostId) {
+      socket.emit("error-msg", { message: "Only host can kick players." });
+      return;
+    }
+    if (!room.users.has(targetId)) return;
+    if (targetId === room.hostId) {
+      socket.emit("error-msg", { message: "Host cannot be kicked." });
+      return;
+    }
+
+    room.users.delete(targetId);
+
+    const targetSocket = io.sockets.sockets.get(targetId);
+    if (targetSocket) {
+      targetSocket.leave(code);
+      targetSocket.emit("kicked");
+    }
+
+    if (room.users.size === 0) {
+      if (room.timer) clearTimeout(room.timer);
+      scheduleRoomCleanup(code);
+      return;
+    }
+
+    if (room.round.running) {
+      endRound(code, "player_left");
+      return;
+    }
+
+    broadcastRoomState(code);
   });
 
   // ---- LEAVE ROOM ----
@@ -354,7 +492,7 @@ io.on("connection", (socket) => {
 
     // ถ้ากำลังเล่นอยู่ แล้วคนออก -> ให้จบรอบเลย (กันความปวดหัว)
     if (room.round.running) {
-      safeEndRound(code, "player_left");
+      endRound(code, "player_left");
       return;
     }
 
@@ -381,7 +519,7 @@ io.on("connection", (socket) => {
       }
 
       if (room.round.running) {
-        safeEndRound(code, "player_left");
+        endRound(code, "player_left");
       } else {
         broadcastRoomState(code);
       }

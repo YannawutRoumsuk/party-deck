@@ -60,6 +60,7 @@
       $("createMsg").textContent = "";
       const name = $("createName").value.trim();
       if (!name) return $("createMsg").textContent = "กรุณาใส่ชื่อก่อน";
+      sessionStorage.setItem("twg_name", name);
       socket.emit("create-room", { name });
     });
 
