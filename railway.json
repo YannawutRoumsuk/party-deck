@@ -1,0 +1,5 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "service": "Forbidden-Word",
+  "environment": "production"
+}
