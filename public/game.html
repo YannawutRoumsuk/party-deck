@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>คำต้องห้าม - Game</title>
+  <title>คำต้องห้าม - เกม</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -11,7 +11,7 @@
     <div class="topbar">
       <div>
         <h1>ห้อง <span id="roomCode">-</span></h1>
-        <div class="sub">ชื่อของเอ็งอะ: <b id="yourName">-</b> <span id="hostBadge" class="badge"></span></div>
+        <div class="sub">ชื่อของคุณ: <b id="yourName">-</b> <span id="hostBadge" class="badge"></span></div>
       </div>
       <div class="right">
         <div class="timer">
@@ -31,8 +31,8 @@
       </div>
 
       <div class="card">
-        <h2>ใส่คำ ที่ต้องการ </h2>
-        <p class="hint">คำนี้จะถูกเอาไปสุ่มให้คนอื่น</p>
+        <h2>ใส่คำที่ต้องการ</h2>
+        <p class="hint">คำนี้จะถูกสุ่มให้ผู้เล่นคนอื่น</p>
         <input id="wordInput" placeholder="เช่น กิน / รถ / ไก่" maxlength="40" />
         <div class="row">
           <button id="btnSubmit" class="primary">ส่งคำ</button>
@@ -42,14 +42,14 @@
         <hr />
 
         <div class="row">
-          <label class="hint">เวลารอบ (วินาที)</label>
+          <label class="hint">เวลารอบ (นาที)</label>
           <input id="durationMin" type="number" min="1" max="5" value="1" style="max-width:120px" />
         </div>
 
         <div class="row">
-          <button id="btnStart" class="primary">Start Round (Host)</button>
-          <button id="btnPause" class="secondary">Pause (Host)</button>
-          <button id="btnReset" class="danger">Reset (Host)</button>
+          <button id="btnStart" class="primary">เริ่มรอบ (โฮสต์)</button>
+          <button id="btnPause" class="secondary">หยุดชั่วคราว (โฮสต์)</button>
+          <button id="btnReset" class="danger">รีเซ็ตรอบ (โฮสต์)</button>
         </div>
 
         <p id="msg" class="hint"></p>
@@ -59,13 +59,13 @@
     <div class="card">
       <h2>รายชื่อคำของแต่ละผู้เล่น</h2>
       <div id="results" class="results"></div>
-      <p class="hint">คำที่คุณส่งไปจะถูกสุ่มให้ผู้เล่นคนอื่น และคุณจะไม่สามารถเห็นคำที่คุณได้รับจากการสุ่ม — ตามกฏ 😈</p>
+      <p class="hint">คำที่คุณส่งจะถูกสุ่มให้ผู้เล่นคนอื่น และคุณจะไม่เห็นคำที่คุณได้รับจากการสุ่ม ตามกติกา</p>
     </div>
 
     <div class="card">
       <h2>คำแนะนำ</h2>
       <div id="results" class="results"></div>
-      <p class="hint">ควรกำหนด กติกาให้ชัดเจนก่อนเริ่มใส่คำ เช่น 1พยางค์ทุกคน / คำกริยาทั้งหมด  </p>
+      <p class="hint">ควรกำหนดกติกาให้ชัดเจนก่อนเริ่มใส่คำ เช่น 1 พยางค์ทุกคน / ใช้คำกริยาทั้งหมด</p>
     </div>
 
   </div>

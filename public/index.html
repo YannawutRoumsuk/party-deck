@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="google-site-verification" content="FFIRyKMR7eLs1G2Z0psdzx_FXGGRWcEXucLp4NfVlMs" />
-  <meta name="description" content="เกมคำต้องห้าม เล่นกับเพื่อน ห้ามซ้ำ ห้ามได้คำตัวเอง เล่นฟรี ไม่ต้องล็อกอิน">
-  <meta name="keywords" content="เกมภาษาไทย, เกมปาร์ตี้, สุ่มคำ, forbidden word, เล่นคำ,คำต้องห้าม,เกมคำต้องห้าม,เกมสุ่มคำต้องห้าม,คำต้องห้ามเทพลีลา">
+  <meta name="description" content="เกมคำต้องห้าม เล่นกับเพื่อน ห้ามซ้ำ ห้ามได้คำของตัวเอง เล่นฟรี ไม่ต้องล็อกอิน">
+  <meta name="keywords" content="เกมภาษาไทย, เกมปาร์ตี้, สุ่มคำ, forbidden word, เล่นคำ, คำต้องห้าม, เกมคำต้องห้าม, เกมสุ่มคำต้องห้าม, คำต้องห้ามเทพลีลา">
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>คำต้องห้าม - Forbidden Word </title>
   <link rel="stylesheet" href="/style.css" />
@@ -12,30 +12,30 @@
 <body>
   <div class="container">
     <h1>🎲 เกมคำต้องห้าม</h1>
-    <p class="sub">ไม่ต้องล็อคอิน ใส่ชื่อแล้วสร้างห้องได้เลย 😈</p>
+    <p class="sub">ไม่ต้องล็อกอิน ใส่ชื่อแล้วสร้างห้องได้ทันที</p>
 
     <div class="grid2">
       <div class="card">
         <h2>สร้างห้อง</h2>
-        <label>ชื่อของเอ็งอะ</label>
+        <label>ชื่อของคุณ</label>
         <input id="createName" placeholder="เช่น อภิญญา รักษี, ขข" maxlength="30" />
-        <button id="btnCreate" class="primary">Create Room</button>
+        <button id="btnCreate" class="primary">สร้างห้อง</button>
         <p id="createMsg" class="hint"></p>
       </div>
 
       <div class="card">
         <h2>เข้าห้อง</h2>
-        <label>Room Code</label>
+        <label>รหัสห้อง</label>
         <input id="joinCode" placeholder="เช่น ABCD2" maxlength="10" />
-        <label>ชื่อแกอะ</label>
+        <label>ชื่อของคุณ</label>
         <input id="joinName" placeholder="เช่น อภิญญา รักษี, ขข" maxlength="30" />
-        <button id="btnJoin" class="primary">Join Room</button>
+        <button id="btnJoin" class="primary">เข้าห้อง</button>
         <p id="joinMsg" class="hint"></p>
       </div>
     </div>
 
     <div class="footer">
-      <span>Tip: แชร์ room code ให้เพื่อน แล้วเข้าไปที่หน้าเกม</span>
+      <span>เคล็ดลับ: แชร์รหัสห้องให้เพื่อน แล้วเข้าไปที่หน้าเกม</span>
     </div>
   </div>
 
@@ -59,7 +59,7 @@
     $("btnCreate").addEventListener("click", () => {
       $("createMsg").textContent = "";
       const name = $("createName").value.trim();
-      if (!name) return $("createMsg").textContent = "ใส่ชื่อก่อนดิเห้ย";
+      if (!name) return $("createMsg").textContent = "กรุณาใส่ชื่อก่อน";
       socket.emit("create-room", { name });
     });
 
@@ -67,8 +67,8 @@
       $("joinMsg").textContent = "";
       const roomCode = $("joinCode").value.trim().toUpperCase();
       const name = $("joinName").value.trim();
-      if (!roomCode) return $("joinMsg").textContent = "ใส่โค้ดห้องก่อนน้าา";
-      if (!name) return $("joinMsg").textContent = "ใส่ชื่อด้วยจ้าาาาาา";
+      if (!roomCode) return $("joinMsg").textContent = "กรุณาใส่รหัสห้องก่อน";
+      if (!name) return $("joinMsg").textContent = "กรุณาใส่ชื่อด้วย";
       // เก็บ name ไว้ใน sessionStorage ให้หน้าเกมดึงไปใช้
       sessionStorage.setItem("twg_name", name);
       socket.emit("join-room", { roomCode, name });
