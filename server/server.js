@@ -8,6 +8,8 @@ const cfg = require("./config");
 const R = require("./rooms");
 const G = require("./game");
 const { stateFor } = require("./state");
+const NR = require("./games/numbers/rules");
+const NState = require("./games/numbers/state");
 
 const app = express();
 const server = http.createServer(app);
@@ -32,6 +34,15 @@ app.use(express.static(path.join(__dirname, "..", "public"), {
 }));
 // เสิร์ฟไลบรารี QR จาก node_modules ตรงๆ ไม่ต้อง bundle และไม่ต้องพึ่ง CDN
 // (เล่นในวงเหล้า/เน็ตบ้านบางที่ CDN โดนบล็อก QR ต้องขึ้นให้ได้อยู่ดี)
+// โหมดต่อหน้ากันรันกติกาในเบราว์เซอร์ล้วน จึงต้องใช้ไฟล์เดียวกับที่ server ใช้
+// ถ้าก๊อปไปไว้อีกที่ วันหนึ่งสองฝั่งจะเพี้ยนกันแน่นอน
+const NUMBERS_RULES = require.resolve("./games/numbers/rules");
+app.get("/numbers-rules.js", (_req, res) => {
+  res.type("application/javascript");
+  res.setHeader("Cache-Control", "no-cache");
+  res.sendFile(NUMBERS_RULES);
+});
+
 const QRCODE_LIB = require.resolve("qrcode-generator");
 app.get("/vendor/qrcode.js", (_req, res) => {
   res.type("application/javascript");
@@ -52,11 +63,18 @@ function pushState(code) {
   const room = rooms.get(code);
   if (!room) return;
 
+  const build = room.gameType === "numbers"
+    ? (viewerId) => NState.roomView(room, viewerId)
+    : (viewerId) => stateFor(room, viewerId);
+
   for (const p of room.players.values()) {
-    if (p.socketId) io.to(p.socketId).emit("state", stateFor(room, p.id));
+    if (p.socketId) io.to(p.socketId).emit("state", build(p.id));
   }
-  for (const sid of room.spectators) {
-    io.to(sid).emit("state", stateFor(room, null));
+  // จอฉายมีเฉพาะเกมคำต้องห้าม
+  if (room.gameType !== "numbers") {
+    for (const sid of room.spectators) {
+      io.to(sid).emit("state", stateFor(room, null));
+    }
   }
 }
 
@@ -105,13 +123,13 @@ function contextOf(socket, roomCode, { hostOnly = false } = {}) {
 // ---------- socket ----------
 
 io.on("connection", (socket) => {
-  socket.on("create-room", ({ name }) => {
+  socket.on("create-room", ({ name, gameType }) => {
     const raw = String(name || "").trim();
     if (!raw) return fail(socket, "กรุณาใส่ชื่อก่อน");
 
     let room;
     try {
-      room = R.createRoom(rooms);
+      room = R.createRoom(rooms, gameType);
     } catch (e) {
       return fail(socket, e.message);
     }
@@ -124,6 +142,7 @@ io.on("connection", (socket) => {
 
     socket.emit("room-created", {
       roomCode: room.code,
+      gameType: room.gameType,
       playerId: player.id,
       spectatorKey: room.spectatorKey
     });
@@ -134,10 +153,20 @@ io.on("connection", (socket) => {
    * เข้าห้อง หรือกลับเข้าห้องเดิม
    * ถ้าส่ง playerId ที่เคยได้มาและยังอยู่ในห้อง = ได้คะแนน/สถานะเดิมคืนทั้งหมด
    */
-  socket.on("join-room", ({ roomCode, name, playerId }) => {
+  socket.on("join-room", ({ roomCode, name, playerId, gameType }) => {
     const code = R.normalizeCode(roomCode);
     const room = rooms.get(code);
     if (!room) return fail(socket, "ไม่พบห้องนี้ ตรวจรหัสห้องอีกครั้ง");
+
+    // เอารหัสห้องข้ามเกมมาใส่ ต้องบอกให้ชัดว่าไปผิดหน้า ไม่ใช่พังเงียบๆ
+    if (gameType && gameType !== room.gameType) {
+      const label = room.gameType === "numbers" ? "เกมทายเลข" : "เกมคำต้องห้าม";
+      return socket.emit("wrong-game", {
+        gameType: room.gameType,
+        roomCode: code,
+        message: "ห้อง " + code + " เป็นห้องของ" + label + " กำลังพาไปหน้าที่ถูกต้อง"
+      });
+    }
 
     R.clearRoomCleanup(room);
 
@@ -162,6 +191,7 @@ io.on("connection", (socket) => {
 
       socket.emit("joined", {
         roomCode: code,
+        gameType: room.gameType,
         playerId: existing.id,
         reconnected: true,
         spectatorKey: room.hostId === existing.id ? room.spectatorKey : null
@@ -170,8 +200,9 @@ io.on("connection", (socket) => {
       return;
     }
 
-    if (room.players.size >= cfg.MAX_PLAYERS) {
-      return fail(socket, `ห้องเต็มแล้ว (สูงสุด ${cfg.MAX_PLAYERS} คน)`);
+    const limit = room.gameType === "numbers" ? cfg.MAX_PLAYERS_NUMBERS : cfg.MAX_PLAYERS;
+    if (room.players.size >= limit) {
+      return fail(socket, `ห้องเต็มแล้ว (สูงสุด ${limit} คน)`);
     }
 
     const finalName = R.uniqueName(room, name);
@@ -185,6 +216,7 @@ io.on("connection", (socket) => {
 
     socket.emit("joined", {
       roomCode: code,
+      gameType: room.gameType,
       playerId: player.id,
       reconnected: false,
       spectatorKey: room.hostId === player.id ? room.spectatorKey : null
@@ -377,6 +409,115 @@ io.on("connection", (socket) => {
     if (target.socketId) {
       io.to(target.socketId).emit("host-granted", { spectatorKey: room.spectatorKey });
     }
+    pushState(code);
+  });
+
+  // ---------- เกมทายเลข ----------
+
+  function numbersCtx(roomCode, opts) {
+    const ctx = contextOf(socket, roomCode, opts);
+    if (ctx.error) return ctx;
+    if (ctx.room.gameType !== "numbers") return { error: "ห้องนี้ไม่ใช่เกมทายเลข" };
+    return ctx;
+  }
+
+  socket.on("numbers-settings", ({ roomCode, format, maxGuesses }) => {
+    const ctx = numbersCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room } = ctx;
+
+    if (room.numbersMatch && room.numbersMatch.phase !== "finished") {
+      return fail(socket, "เกมกำลังเล่นอยู่ ตั้งค่าใหม่ไม่ได้");
+    }
+
+    const raw = Number(maxGuesses);
+    room.numbersSettings = {
+      format: format === "alternate" ? "alternate" : "single",
+      maxGuesses: Number.isFinite(raw)
+        ? Math.max(NR.MIN_GUESSES, Math.min(Math.round(raw), NR.MAX_GUESSES))
+        : NR.DEFAULT_GUESSES
+    };
+    pushState(code);
+  });
+
+  socket.on("numbers-start", ({ roomCode }) => {
+    const ctx = numbersCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room } = ctx;
+
+    const ids = [...room.players.values()].filter((p) => p.connected).map((p) => p.id);
+    if (ids.length !== 2) return fail(socket, "เกมทายเลขต้องมีผู้เล่นออนไลน์ 2 คนพอดี");
+
+    try {
+      room.numbersMatch = NR.createMatch({
+        playerIds: ids,
+        format: room.numbersSettings.format,
+        maxGuesses: room.numbersSettings.maxGuesses,
+        // สลับคนเริ่มก่อนทุกเกม จะได้ไม่มีใครได้เปรียบสะสม
+        firstGuesser: ids[(room.numbersGameNo || 0) % 2]
+      });
+      room.numbersGameNo = (room.numbersGameNo || 0) + 1;
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+
+    announce(code, "numbers-started", { gameNo: room.numbersGameNo });
+    pushState(code);
+  });
+
+  socket.on("numbers-secret", ({ roomCode, value }) => {
+    const ctx = numbersCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room, player } = ctx;
+
+    if (!room.numbersMatch) return fail(socket, "ยังไม่ได้เริ่มเกม");
+
+    try {
+      NR.setSecret(room.numbersMatch, player.id, Math.round(Number(value)));
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+
+    socket.emit("numbers-secret-ok", { value: Math.round(Number(value)) });
+    if (room.numbersMatch.phase === "playing") {
+      announce(code, "numbers-playing", { turn: room.numbersMatch.turn });
+    }
+    pushState(code);
+  });
+
+  socket.on("numbers-guess", ({ roomCode, value }) => {
+    const ctx = numbersCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room, player } = ctx;
+
+    const match = room.numbersMatch;
+    if (!match) return fail(socket, "ยังไม่ได้เริ่มเกม");
+
+    let outcome;
+    try {
+      outcome = NR.guess(match, player.id, Math.round(Number(value)));
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+
+    announce(code, "numbers-guessed", {
+      byId: player.id,
+      byName: player.name,
+      value: outcome.value,
+      verdict: outcome.verdict,
+      low: outcome.low,
+      high: outcome.high
+    });
+
+    if (match.phase === "finished") {
+      // คะแนนสะสมข้ามเกม เก็บไว้ที่ player เหมือนเกมคำต้องห้าม
+      for (const id of match.playerIds) {
+        const p = room.players.get(id);
+        if (p) p.score = (p.score || 0) + (match.result.scores[id] || 0);
+      }
+      announce(code, "numbers-finished", { result: match.result });
+    }
+
     pushState(code);
   });
 

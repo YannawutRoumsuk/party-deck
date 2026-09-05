@@ -61,7 +61,8 @@
     socket.emit("join-room", {
       roomCode: roomCode,
       name: name,
-      playerId: session.playerId || null
+      playerId: session.playerId || null,
+      gameType: "forbidden"
     });
   }
 
@@ -433,6 +434,13 @@
     node.classList.remove("flash");
     void node.offsetWidth;
     node.classList.add("flash");
+  });
+
+  socket.on("wrong-game", function (data) {
+    FWUI.toast(data.message, "bad", 5000);
+    setTimeout(function () {
+      window.location.href = "/numbers.html?room=" + data.roomCode;
+    }, 1200);
   });
 
   socket.on("session-taken", function () {

@@ -71,7 +71,8 @@
     socket.emit("join-room", {
       roomCode: code,
       name: name,
-      playerId: prev ? prev.playerId : null
+      playerId: prev ? prev.playerId : null,
+      gameType: "forbidden"
     });
   });
 
@@ -83,6 +84,14 @@
       spectatorKey: data.spectatorKey || prev.spectatorKey || null
     });
     goGame(data.roomCode);
+  });
+
+  // เอารหัสห้องเกมทายเลขมาใส่ที่นี่ ให้พาไปหน้าที่ถูกแทนที่จะขึ้น error เฉยๆ
+  socket.on("wrong-game", function (data) {
+    FWUI.toast(data.message, "bad", 5000);
+    setTimeout(function () {
+      window.location.href = "/numbers.html?room=" + data.roomCode;
+    }, 1200);
   });
 
   socket.on("error-msg", function (data) {

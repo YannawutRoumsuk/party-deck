@@ -5,6 +5,7 @@ module.exports = {
   CODE_CHARS: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
 
   MAX_PLAYERS: 12,
+  MAX_PLAYERS_NUMBERS: 2,   // เกมทายเลขเล่นได้ 2 คนพอดี
   MAX_NAME_LEN: 24,
   MAX_WORD_LEN: 40,
   MIN_PLAYERS_TO_START: 2,

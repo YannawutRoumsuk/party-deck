@@ -62,10 +62,12 @@ function createPlayer(name) {
   };
 }
 
-function createRoom(rooms) {
+function createRoom(rooms, gameType) {
   const code = randomRoomCode(new Set(rooms.keys()));
   const room = {
     code,
+    // ห้องสองเกมอยู่ใน Map เดียวกัน ต้องรู้ว่าเป็นเกมไหนเพื่อกันเข้าผิดเกม
+    gameType: gameType === "numbers" ? "numbers" : "forbidden",
     spectatorKey: randomSpectatorKey(),
     hostId: null,
     players: new Map(),   // playerId -> player
@@ -81,7 +83,11 @@ function createRoom(rooms) {
     },
     lastCallout: null,
     timer: null,
-    emptyTimer: null
+    emptyTimer: null,
+
+    // ใช้เฉพาะเกมทายเลข
+    numbersSettings: { format: "single", maxGuesses: 5 },
+    numbersMatch: null
   };
   rooms.set(code, room);
   return room;

@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#1a0f22" />
+  <meta name="description" content="เกมทายเลข 1-99 เล่นกับเพื่อน เลือกเลขลับคนละเลขแล้วผลัดกันทาย ระบบบอกสูงไปต่ำไปพร้อมช่วงที่เหลือ เล่นได้ทั้งต่อหน้ากันเครื่องเดียวและออนไลน์คนละเครื่อง">
+  <meta name="keywords" content="เกมทายเลข, ทายตัวเลข, เกมปาร์ตี้, เกมเล่นกับเพื่อน, number guessing game, เกมสองคน, เกมออนไลน์เล่นกับเพื่อน">
+  <meta property="og:title" content="ทายเลข | เกมเล่นกับเพื่อน" />
+  <meta property="og:description" content="เลือกเลขลับ 1-99 คนละเลข แล้วทายเลขของอีกฝ่ายให้เจอก่อน" />
+  <title>ทายเลข | Number Duel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <!-- ========== หน้าเลือกโหมด ========== -->
+  <main id="screenSetup" class="container stack-lg">
+    <section class="hero">
+      <p class="kicker">2 คน · เลข 1–99</p>
+      <h1>เกม<mark>ทายเลข</mark></h1>
+      <p class="muted" style="max-width:52ch">
+        ต่างคนต่างเลือกเลขลับคนละเลข แล้วทายเลขของอีกฝ่ายให้เจอ
+        ทายผิดระบบจะบอกว่าสูงไปหรือต่ำไป พร้อมบีบช่วงที่เหลือให้ดู
+      </p>
+    </section>
+
+    <section class="card">
+      <header>
+        <h2>เล่นแบบไหน</h2>
+        <p class="faint">เลือกได้ทั้งสองแกน</p>
+      </header>
+
+      <div>
+        <label>อยู่ด้วยกันหรือคนละที่</label>
+        <div class="choice-grid">
+          <button class="choice" data-place="local" aria-pressed="true">
+            <b>ต่อหน้ากัน</b>
+            <span class="faint">เครื่องเดียว ส่งกันดู ไม่ต้องใช้เน็ต</span>
+          </button>
+          <button class="choice" data-place="online" aria-pressed="false">
+            <b>ออนไลน์</b>
+            <span class="faint">คนละเครื่อง มีรหัสห้องให้แชร์</span>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label>รูปแบบการทาย</label>
+        <div class="choice-grid">
+          <button class="choice" data-format="single" aria-pressed="true">
+            <b>ทายฝ่ายเดียวก่อน</b>
+            <span class="faint">ทายจนครบโควตา แล้วค่อยสลับ ใครใช้ครั้งน้อยกว่าชนะ</span>
+          </button>
+          <button class="choice" data-format="alternate" aria-pressed="false">
+            <b>ผลัดกันทาย</b>
+            <span class="faint">สลับตากันไปเรื่อยๆ ใครเจอก่อนชนะ</span>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label for="maxGuesses">ทายได้ฝั่งละกี่ครั้ง</label>
+        <input id="maxGuesses" type="number" min="3" max="10" step="1" value="5" inputmode="numeric" />
+        <p id="guessHint" class="faint"></p>
+      </div>
+    </section>
+
+    <!-- ต่อหน้ากัน: ใส่ชื่อสองคนแล้วเริ่มเลย -->
+    <section id="localSetup" class="card card-hot">
+      <header><h2>ใส่ชื่อผู้เล่น</h2></header>
+      <div class="grid2">
+        <div>
+          <label for="nameA">ผู้เล่น 1</label>
+          <input id="nameA" maxlength="24" placeholder="เช่น ต้น" autocomplete="off" />
+        </div>
+        <div>
+          <label for="nameB">ผู้เล่น 2</label>
+          <input id="nameB" maxlength="24" placeholder="เช่น เจได" autocomplete="off" />
+        </div>
+      </div>
+      <button id="btnStartLocal" class="primary block">เริ่มเล่น</button>
+    </section>
+
+    <!-- ออนไลน์: สร้าง/เข้าห้อง -->
+    <div id="onlineSetup" class="grid2" hidden>
+      <section class="card card-hot">
+        <header>
+          <h2>สร้างห้อง</h2>
+          <p class="faint">คุณจะเป็นโฮสต์ คุมการตั้งค่า</p>
+        </header>
+        <div>
+          <label for="createName">ชื่อของคุณ</label>
+          <input id="createName" maxlength="24" placeholder="เช่น ต้น" autocomplete="nickname" />
+        </div>
+        <button id="btnCreate" class="primary block">สร้างห้อง</button>
+        <p id="createMsg" class="faint" role="status"></p>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>เข้าห้องเพื่อน</h2>
+          <p class="faint">ใส่รหัส 5 ตัว</p>
+        </header>
+        <div>
+          <label for="joinCode">รหัสห้อง</label>
+          <input id="joinCode" class="code-input" maxlength="5" placeholder="ABCD2" autocomplete="off" autocapitalize="characters" />
+        </div>
+        <div>
+          <label for="joinName">ชื่อของคุณ</label>
+          <input id="joinName" maxlength="24" placeholder="เช่น เจได" autocomplete="nickname" />
+        </div>
+        <button id="btnJoin" class="volt block">เข้าห้อง</button>
+        <p id="joinMsg" class="faint" role="status"></p>
+      </section>
+    </div>
+
+    <section class="card">
+      <header><h2>กติกา</h2></header>
+      <ul class="info-list">
+        <li>เลือกเลขลับได้ตั้งแต่ <b>1 ถึง 99</b> คนละเลข</li>
+        <li>ทายผิดจะบอก <b>สูงไป</b> หรือ <b>ต่ำไป</b> แล้วบีบช่วงที่เหลือให้อัตโนมัติ</li>
+        <li>ทายเลขที่ถูกตัดออกไปแล้วหรือเลขซ้ำ ระบบจะกันไว้ให้ <b>ไม่เสียตาฟรี</b></li>
+        <li>เจอเร็วได้แต้มเยอะ — เจอครั้งแรกได้เต็มโควตา เจอครั้งสุดท้ายได้ 1 แต้ม</li>
+        <li>โหมดผลัดกัน ถ้าคนทายก่อนเจอ อีกฝ่ายได้ทายแก้ตัวอีก 1 ตา ถูกด้วยถือว่าเสมอ</li>
+      </ul>
+      <a class="btn ghost" href="/">ไปเล่นเกมคำต้องห้าม</a>
+    </section>
+  </main>
+
+  <!-- ========== ส่งเครื่องให้อีกคน (โหมดต่อหน้ากัน) ========== -->
+  <div id="screenPass" class="pass-screen" hidden>
+    <div class="pass-inner">
+      <p class="muted">ส่งเครื่องให้</p>
+      <h1 id="passName" class="pass-name">-</h1>
+      <p id="passWhy" class="muted center"></p>
+      <button id="btnPassReady" class="volt block">พร้อมแล้ว</button>
+    </div>
+  </div>
+
+  <!-- ========== หน้าเล่น ========== -->
+  <main id="screenPlay" class="container stack-lg" hidden>
+    <header class="topbar" style="border-radius:var(--r-lg);margin-bottom:var(--gap)">
+      <div class="grow">
+        <div class="room-tag" id="playTitle">-</div>
+        <div class="faint" id="playSubtitle">-</div>
+      </div>
+      <div id="guessesLeft" class="timer idle">-</div>
+    </header>
+
+    <!-- เลือกเลขลับ -->
+    <section id="pickCard" class="card card-hot" hidden>
+      <header>
+        <h2>เลือกเลขลับของ <span id="pickWho">คุณ</span></h2>
+        <p class="faint">อีกฝ่ายจะพยายามทายเลขนี้ อย่าให้เห็น</p>
+      </header>
+      <div>
+        <label for="secretInput">เลข 1–99</label>
+        <input id="secretInput" type="number" min="1" max="99" inputmode="numeric" autocomplete="off" />
+      </div>
+      <button id="btnSetSecret" class="primary block">ยืนยันเลขนี้</button>
+      <p id="pickMsg" class="faint" role="status"></p>
+    </section>
+
+    <!-- รอ -->
+    <section id="waitCard" class="card" hidden>
+      <header><h2 id="waitTitle">รออีกฝ่าย</h2></header>
+      <p class="faint" id="waitMsg">-</p>
+    </section>
+
+    <!-- ทาย -->
+    <section id="guessCard" class="card" hidden>
+      <header>
+        <h2 id="guessTitle">ตาของคุณ</h2>
+        <p class="faint" id="guessWhose">-</p>
+      </header>
+
+      <div class="range-box">
+        <span class="range-label">เหลือให้ทาย</span>
+        <span class="range-value"><span id="rangeLow">1</span> – <span id="rangeHigh">99</span></span>
+        <span class="faint" id="rangeCount"></span>
+      </div>
+
+      <div>
+        <label for="guessInput" id="guessInputLabel">พิมพ์เลขที่ทาย</label>
+        <input id="guessInput" type="number" min="1" max="99" inputmode="numeric" autocomplete="off" />
+      </div>
+      <button id="btnGuess" class="primary block">ทาย</button>
+      <p id="guessMsg" class="faint" role="status"></p>
+    </section>
+
+    <!-- ผลล่าสุด -->
+    <section id="verdictCard" class="card" hidden>
+      <div class="verdict-box">
+        <span class="verdict-guess" id="verdictGuess">-</span>
+        <span class="verdict-word" id="verdictWord">-</span>
+      </div>
+    </section>
+
+    <!-- ประวัติ -->
+    <section class="card">
+      <header><h2>ประวัติการทาย</h2></header>
+      <div id="historyWrap" class="stack" style="gap:0.8rem"></div>
+    </section>
+
+    <!-- ผลจบเกม -->
+    <section id="resultCard" class="card reveal-card" hidden>
+      <header><h2 id="resultTitle">จบเกม</h2></header>
+      <div id="resultReveal" class="stack" style="gap:0.5rem"></div>
+      <div id="resultScores" class="stack" style="gap:0.4rem"></div>
+      <button id="btnAgain" class="volt block">เล่นอีกเกม</button>
+    </section>
+
+    <!-- คะแนนสะสม -->
+    <section class="card">
+      <header><h2>คะแนนสะสม</h2></header>
+      <div id="totalScores" class="stack" style="gap:0.4rem"></div>
+    </section>
+
+    <!-- ชวนเพื่อน (ออนไลน์) -->
+    <section id="inviteCard" class="card" hidden>
+      <header>
+        <h2>ชวนเพื่อนเข้าห้อง</h2>
+        <p class="faint">ให้เพื่อนสแกน QR หรือบอกรหัสห้อง</p>
+      </header>
+      <div class="invite">
+        <figure class="qr-figure">
+          <button id="btnShowQr" class="qr-box qr-tap" aria-label="ขยาย QR เชิญเพื่อนให้เต็มจอ">
+            <span id="qrInvite" class="qr-slot"></span>
+          </button>
+          <figcaption class="qr-caption">
+            <b>QR เชิญเพื่อน</b>
+            <span class="faint">จิ้มเพื่อขยายเต็มจอ</span>
+          </figcaption>
+        </figure>
+        <div class="invite-side">
+          <label>รหัสห้อง</label>
+          <div class="big-code" id="bigCode">-----</div>
+          <p class="faint">บอกรหัสนี้ให้เพื่อนพิมพ์เองก็ได้</p>
+        </div>
+      </div>
+      <div class="copy-field">
+        <code id="inviteLink">-</code>
+        <button id="btnCopyInvite" class="mini ghost">คัดลอก</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <button id="btnQuit" class="ghost grow">ออกจากเกม</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="qrModal" class="qr-modal" hidden role="dialog" aria-modal="true" aria-label="QR สำหรับเข้าห้อง">
+    <div class="qr-modal-inner">
+      <div id="qrBig" class="qr-box qr-box-lg"></div>
+      <div class="qr-modal-code" id="qrModalCode">-----</div>
+      <p class="muted center">สแกนเพื่อเข้าห้องได้เลย</p>
+      <button id="btnCloseQr" class="ghost block">ปิด</button>
+    </div>
+  </div>
+
+  <div id="toasts" class="toast-wrap" aria-live="polite"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/vendor/qrcode.js"></script>
+  <script src="/numbers-rules.js"></script>
+  <script src="/store.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/qr.js"></script>
+  <script src="/numbers.js"></script>
+</body>
+</html>

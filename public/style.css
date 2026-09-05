@@ -746,3 +746,131 @@ input:focus, select:focus { border-color: var(--hot); }
 }
 
 .reveal-row.is-out .reveal-row-word { color: var(--danger); }
+
+/* ---------- เกมทายเลข ---------- */
+
+.choice-grid { display: grid; gap: 0.6rem; grid-template-columns: 1fr; }
+@media (min-width: 560px) { .choice-grid { grid-template-columns: 1fr 1fr; } }
+
+.choice {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: start;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  min-height: 0;
+  background: var(--surface-2);
+  border: 2px solid var(--line);
+  box-shadow: none;
+}
+
+.choice b { font-family: var(--font-display); font-size: 1rem; }
+.choice span { font-weight: 400; line-height: 1.4; }
+
+/* ปุ่มที่เลือกอยู่ต้องอ่านออกทันทีโดยไม่ต้องเทียบกับอันอื่น */
+.choice[aria-pressed="true"] {
+  border-color: var(--hot);
+  background: oklch(30% 0.09 355 / 0.35);
+}
+
+.choice[aria-pressed="true"] b { color: var(--hot); }
+
+/* ช่วงที่เหลือ คือข้อมูลที่คนทายต้องมองตลอดเวลา */
+.range-box {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: center;
+  padding: clamp(0.8rem, 0.5rem + 1.4vw, 1.4rem);
+  background: var(--stage-deep);
+  border: 2px dashed var(--volt);
+  border-radius: var(--r);
+}
+
+.range-label { font-size: var(--t-small); font-weight: 600; color: var(--muted); }
+
+.range-value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 1.3rem + 3.6vw, 3.4rem);
+  line-height: 1;
+  color: var(--volt);
+  font-variant-numeric: tabular-nums;
+}
+
+.verdict-box { display: grid; gap: 0.3rem; justify-items: center; }
+
+.verdict-guess {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.4rem, 1.5rem + 4.5vw, 4rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.verdict-word {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.2rem, 0.9rem + 1.6vw, 2rem);
+}
+
+.verdict-word.high { color: var(--danger); }
+.verdict-word.low  { color: oklch(72% 0.16 240); }
+.verdict-word.hit  { color: var(--volt); }
+
+.history-block {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  background: var(--surface-2);
+  border-radius: var(--r);
+}
+
+.history-secret {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.guess-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.guess-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: var(--stage-deep);
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
+}
+
+.guess-chip b {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.guess-chip.high { border-color: var(--danger); color: var(--danger); }
+.guess-chip.low  { border-color: oklch(60% 0.14 240); color: oklch(75% 0.14 240); }
+.guess-chip.hit  { border-color: var(--volt); color: var(--volt-ink); background: var(--volt); }
+
+/* หน้าคั่นตอนส่งเครื่อง — ต้องทึบสนิท กันอีกฝ่ายเหลือบเห็นของเดิม */
+.pass-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: var(--stage-deep);
+}
+
+.pass-inner { display: grid; gap: 1rem; justify-items: center; width: min(100%, 460px); }
+
+.pass-name {
+  font-size: clamp(2.4rem, 1.5rem + 5vw, 4.5rem);
+  color: var(--volt);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
