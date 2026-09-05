@@ -73,7 +73,7 @@ function renderResultsList(list) {
     const card = document.createElement("div");
     card.className = "result-card";
     card.innerHTML = `
-      <div class="result-name">${x.name} ได้คำว่า</div>
+      <div class="result-name">${escapeHtml(x.name)} ได้คำว่า</div>
       <div class="result-word">${escapeHtml(x.word)}</div>
     `;
     wrap.appendChild(card);
@@ -344,8 +344,6 @@ $("btnSubmit").addEventListener("click", () => {
   socket.emit("submit-word", { roomCode, word });
   setWordStatusAnimated(yourHasWord ? "เปลี่ยนคำแล้ว" : "ส่งคำแล้ว");
   yourHasWord = true;
-  return;
-  setWordStatus("ส่งแล้ว ✅");
 });
 
 $("btnStart").addEventListener("click", () => {
