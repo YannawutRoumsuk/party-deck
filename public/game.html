@@ -106,13 +106,20 @@
       </header>
 
       <div class="invite">
-        <div id="qrInvite" class="qr-box" aria-live="polite"></div>
+        <figure class="qr-figure">
+          <button id="btnShowQr" class="qr-box qr-tap" aria-label="ขยาย QR เชิญเพื่อนให้เต็มจอ">
+            <span id="qrInvite" class="qr-slot"></span>
+          </button>
+          <figcaption class="qr-caption">
+            <b>QR เชิญเพื่อน</b>
+            <span class="faint">จิ้มเพื่อขยายเต็มจอ</span>
+          </figcaption>
+        </figure>
+
         <div class="invite-side">
-          <div>
-            <label>รหัสห้อง</label>
-            <div class="big-code" id="bigCode">-----</div>
-          </div>
-          <button id="btnShowQr" class="volt block">แสดง QR เต็มจอ</button>
+          <label>รหัสห้อง</label>
+          <div class="big-code" id="bigCode">-----</div>
+          <p class="faint">บอกรหัสนี้ให้เพื่อนพิมพ์เองก็ได้ ไม่ต้องสแกน</p>
         </div>
       </div>
 

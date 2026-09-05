@@ -54,6 +54,17 @@
 
 * { box-sizing: border-box; }
 
+/* ต้องมาก่อนทุกอย่าง และต้อง !important
+   เพราะ [hidden] ของเบราว์เซอร์มี specificity เท่ากับ class selector
+   พอเราเขียน .qr-modal { display: grid } มันจะทับ [hidden] ทำให้ซ่อนไม่ลง */
+[hidden] { display: none !important; }
+
+/* <input> มี size ปริยาย 20 ตัวอักษร จึงมี min-width ติดตัวมาราว 515px
+   ลูกของ grid/flex จะไม่ยอมหดต่ำกว่า min-content ของตัวเอง
+   ผลคือการ์ดถูกดันจนล้นจอบนมือถือ ต้องปลดล็อกให้หดได้ */
+input, select, textarea { min-width: 0; }
+.card > *, .row > *, .stack > *, .grid2 > *, .invite > *, .invite-side > * { min-width: 0; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -599,7 +610,35 @@ input:focus, select:focus { border-color: var(--hot); }
   .invite { grid-template-columns: auto 1fr; align-items: center; justify-items: stretch; }
 }
 
-.invite-side { display: grid; gap: 0.75rem; align-content: center; width: 100%; }
+.invite-side { display: grid; gap: 0.4rem; align-content: center; width: 100%; }
+
+/* QR ทั้งกล่องเป็นปุ่ม จิ้มตรงไหนก็ขยายได้ ไม่ต้องเล็งปุ่มเล็กๆ */
+.qr-figure { margin: 0; display: grid; gap: 0.5rem; justify-items: center; }
+
+.qr-tap {
+  /* ล้างสไตล์ปุ่มทั่วไปออก ไม่งั้นจะได้ปุ่มสีเทาครอบ QR */
+  border: 0;
+  min-height: 0;
+  padding: 0.5rem;
+  cursor: zoom-in;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur);
+}
+
+.qr-tap:hover:not(:disabled) { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 0 var(--stage-deep); }
+.qr-tap:active:not(:disabled) { transform: translateY(0) scale(0.99); }
+
+.qr-slot { display: block; width: 100%; height: 100%; }
+.qr-slot svg { display: block; width: 100%; height: 100%; }
+
+.qr-caption {
+  display: grid;
+  gap: 0.1rem;
+  justify-items: center;
+  text-align: center;
+  font-size: var(--t-small);
+}
+
+.qr-caption b { font-family: var(--font-display); color: var(--volt); font-size: 0.95rem; }
 
 .big-code {
   font-family: var(--font-display);
