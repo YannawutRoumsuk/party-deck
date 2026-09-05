@@ -69,7 +69,7 @@ test("คนที่ยังไม่ส่งคำ หรือเน็ต�
   assert.strictEqual(P(room, 2).assigned, null);
 });
 
-test("จับผิด: คนจับได้แต้ม คนโดนจับออกจากรอบ", () => {
+test("จับผิด: คนจับได้ 2 แต้ม คนโดนจับออกจากรอบ", () => {
   const room = makeRoom(["a", "b", "c"], ["กิน", "รถ", "ไก่"]);
   G.startRound(room, 60000);
 
@@ -77,7 +77,7 @@ test("จับผิด: คนจับได้แต้ม คนโดน�
 
   assert.strictEqual(P(room, 1).out, true);
   assert.strictEqual(P(room, 1).outBy, P(room, 0).id);
-  assert.strictEqual(P(room, 0).roundScore, 1);
+  assert.strictEqual(P(room, 0).roundScore, 2);
 });
 
 test("จับผิดตัวเอง / จับคนที่ออกไปแล้ว ต้องไม่ผ่าน", () => {
@@ -105,6 +105,7 @@ test("ยกเลิกการจับผิด คืนทั้งสถ�
   const [a, b] = ids(room);
 
   G.callOut(room, a, b);
+  assert.strictEqual(P(room, 0).roundScore, 2);
   G.undoCallout(room);
 
   assert.strictEqual(P(room, 1).out, false);
@@ -124,17 +125,30 @@ test("เหลือคนรอดคนเดียว ต้องจบร�
   assert.strictEqual(G.shouldAutoEnd(room), true);
 });
 
-test("คิดคะแนน: จับผิดได้ครั้งละ 1 รอดจนจบ +2", () => {
+test("คิดคะแนน: จับผิด +2 รอดจนจบ +1 และบวกกันได้", () => {
   const room = makeRoom(["a", "b", "c"], ["กิน", "รถ", "ไก่"]);
   G.startRound(room, 60000);
   const [a, b] = ids(room);
 
-  G.callOut(room, a, b);       // a ได้ 1
-  G.finishRound(room);          // a และ c รอด ได้อีกคนละ 2
+  G.callOut(room, a, b);
+  G.finishRound(room);
 
-  assert.strictEqual(P(room, 0).score, 3); // 1 + 2
-  assert.strictEqual(P(room, 1).score, 0); // โดนจับ ไม่ได้อะไร
-  assert.strictEqual(P(room, 2).score, 2); // รอด
+  assert.strictEqual(P(room, 0).score, 3); // จับผิด 2 + รอด 1
+  assert.strictEqual(P(room, 1).score, 0); // โดนจับ ไม่ได้อะไรเลย
+  assert.strictEqual(P(room, 2).score, 1); // รอดเฉยๆ
+});
+
+test("จับผิดได้หลายคนในรอบเดียว แต้มสะสมทบกัน", () => {
+  const room = makeRoom(["a", "b", "c", "d"], ["ก", "ข", "ค", "ง"]);
+  G.startRound(room, 60000);
+  const [a, b, c] = ids(room);
+
+  G.callOut(room, a, b);
+  G.callOut(room, a, c);
+  assert.strictEqual(P(room, 0).roundScore, 4);
+
+  G.finishRound(room);
+  assert.strictEqual(P(room, 0).score, 5); // 2+2 แล้วรอดอีก 1
 });
 
 test("จบรอบแล้วล้างคำ แต่คะแนนสะสมต้องอยู่", () => {
@@ -144,7 +158,7 @@ test("จบรอบแล้วล้างคำ แต่คะแนนส�
 
   for (const p of room.players.values()) {
     assert.strictEqual(p.word, null, "คำที่ส่งต้องถูกล้าง");
-    assert.strictEqual(p.score, 2, "คะแนนต้องอยู่");
+    assert.strictEqual(p.score, 1, "คะแนนต้องอยู่");
   }
   assert.strictEqual(room.round.running, false);
   assert.strictEqual(room.round.revealed, true);
@@ -161,6 +175,28 @@ test("state: ห้ามส่งคำของตัวเองกลับ�
 
   assert.strictEqual(self.assigned, null, "ตัวเองต้องมองไม่เห็นคำตัวเอง");
   assert.ok(others.every((o) => typeof o.assigned === "string"), "ต้องเห็นคำของคนอื่น");
+});
+
+test("state: จบรอบแล้วต้องเฉลยคำของตัวเองให้เจ้าตัวเห็นด้วย", () => {
+  const room = makeRoom(["a", "b", "c"], ["กิน", "รถ", "ไก่"]);
+  G.startRound(room, 60000);
+  const me = P(room, 0);
+  const myWord = me.assigned;
+
+  // ระหว่างรอบ ยังต้องซ่อนอยู่
+  let view = stateFor(room, me.id);
+  assert.strictEqual(view.players.find((p) => p.id === me.id).assigned, null);
+
+  G.finishRound(room);
+
+  // จบรอบแล้ว ต้องเห็นครบทุกคน รวมของตัวเอง
+  view = stateFor(room, me.id);
+  assert.strictEqual(view.round.revealed, true);
+  assert.strictEqual(view.players.find((p) => p.id === me.id).assigned, myWord);
+  assert.ok(
+    view.players.every((p) => typeof p.assigned === "string"),
+    "ตอนเฉลยต้องเห็นคำของทุกคน"
+  );
 });
 
 test("state: ก่อนเริ่มรอบ ห้ามหลุดคำของใครทั้งนั้น", () => {

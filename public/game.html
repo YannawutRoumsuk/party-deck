@@ -22,6 +22,25 @@
 
   <main class="container stack-lg">
 
+    <!-- เฉลยหลังจบรอบ: ทุกคนได้รู้คำของตัวเองซะที -->
+    <section id="revealCard" class="card reveal-card" hidden>
+      <header>
+        <h2>เฉลยรอบ <span id="revealRound">-</span></h2>
+        <p class="faint">คำที่คุณถืออยู่ทั้งรอบโดยไม่รู้ตัว</p>
+      </header>
+
+      <div class="reveal-mine">
+        <span class="reveal-label">คำของคุณคือ</span>
+        <span class="reveal-word" id="revealMyWord">-</span>
+        <span id="revealMyFate" class="badge"></span>
+      </div>
+
+      <div>
+        <label>คำของคนอื่น</label>
+        <div id="revealOthers" class="reveal-list"></div>
+      </div>
+    </section>
+
     <!-- ก่อนเริ่มรอบ: ส่งคำ -->
     <section id="wordCard" class="card card-hot">
       <header>
@@ -54,7 +73,7 @@
     <section class="card">
       <header><h2>คะแนนรวม</h2></header>
       <div id="scoreboard" class="stack" style="gap:0.4rem"></div>
-      <p class="faint">จับผิดได้ครั้งละ 1 แต้ม &middot; รอดจนจบรอบ +2 แต้ม</p>
+      <p class="faint">จับผิดได้ครั้งละ +2 แต้ม &middot; รอดจนจบรอบ +1 แต้ม &middot; บวกกันได้</p>
     </section>
 
     <!-- เครื่องมือโฮสต์ -->

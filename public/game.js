@@ -172,13 +172,55 @@
 
   function playerWord(p) {
     var isSelf = p.id === state.youId;
-    var live = state.round.running || state.round.revealed;
+    var revealed = state.round.revealed;
+    var live = state.round.running || revealed;
 
     if (!live) return null;
     if (!p.playing) return el("div", "player-word hidden-self", "ไม่ได้เล่นรอบนี้");
-    if (isSelf) return el("div", "player-word hidden-self", "คำของคุณ ซ่อนไว้ตามกติกา");
 
-    return el("div", "player-word" + (state.round.revealed ? " revealed" : ""), p.assigned || "-");
+    // ระหว่างรอบยังซ่อน แต่พอเฉลยแล้วเจ้าตัวต้องได้เห็น
+    if (isSelf && !revealed) {
+      return el("div", "player-word hidden-self", "คำของคุณ ซ่อนไว้ตามกติกา");
+    }
+    return el("div", "player-word" + (revealed ? " revealed" : ""), p.assigned || "-");
+  }
+
+  // ---------- การ์ดเฉลย ----------
+
+  function renderReveal() {
+    var card = $("revealCard");
+    var me = state.players.filter(function (p) { return p.id === state.youId; })[0];
+
+    if (!state.round.revealed || !me || !me.playing) {
+      card.hidden = true;
+      return;
+    }
+
+    $("revealRound").textContent = state.round.number;
+    $("revealMyWord").textContent = me.assigned || "-";
+
+    var fate = $("revealMyFate");
+    if (me.out) {
+      var by = state.players.filter(function (x) { return x.id === me.outBy; })[0];
+      fate.className = "badge badge-out";
+      fate.textContent = by ? "โดน " + by.name + " จับ" : "โดนจับ";
+    } else {
+      fate.className = "badge badge-ready";
+      fate.textContent = "รอดจนจบรอบ";
+    }
+
+    var list = $("revealOthers");
+    clear(list);
+    state.players.forEach(function (p) {
+      if (p.id === state.youId || !p.playing) return;
+
+      var row = el("div", "reveal-row" + (p.out ? " is-out" : ""));
+      row.appendChild(el("span", "grow", p.name));
+      row.appendChild(el("span", "reveal-row-word", p.assigned || "-"));
+      list.appendChild(row);
+    });
+
+    card.hidden = false;
   }
 
   function hostControlsFor(p) {
@@ -335,6 +377,7 @@
       }
     }
 
+    renderReveal();
     renderPlayers();
     renderScores();
     renderCallButtons();
@@ -376,10 +419,10 @@
 
     var survivors = data.results.filter(function (r) { return !r.out; });
     var tail = survivors.length
-      ? " รอดได้แต้ม: " + survivors.map(function (r) { return r.name; }).join(", ")
+      ? " รอด: " + survivors.map(function (r) { return r.name; }).join(", ")
       : "";
 
-    FWUI.toast(reason + tail, "good", 7000);
+    FWUI.toast(reason + tail + " — เลื่อนขึ้นไปดูเฉลย", "good", 8000);
   });
 
   socket.on("scores-reset", function () { FWUI.toast("ล้างคะแนนแล้ว"); });

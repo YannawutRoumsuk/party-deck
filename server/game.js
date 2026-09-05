@@ -1,5 +1,5 @@
 // server/game.js — กติกาของรอบ: แจกคำ, จับผิด, คิดคะแนน, จบรอบ
-const { MIN_PLAYERS_TO_START } = require("./config");
+const { MIN_PLAYERS_TO_START, CALLOUT_POINTS, SURVIVE_POINTS } = require("./config");
 const { survivors } = require("./rooms");
 const { derange } = require("./assign");
 
@@ -74,7 +74,7 @@ function callOut(room, callerId, targetId) {
 
   target.out = true;
   target.outBy = caller.id;
-  caller.roundScore += 1;
+  caller.roundScore += CALLOUT_POINTS;
 
   room.lastCallout = {
     targetId: target.id,
@@ -99,7 +99,7 @@ function undoCallout(room) {
     target.out = false;
     target.outBy = null;
   }
-  if (caller) caller.roundScore = Math.max(0, caller.roundScore - 1);
+  if (caller) caller.roundScore = Math.max(0, caller.roundScore - CALLOUT_POINTS);
 
   room.lastCallout = null;
   return last;
@@ -126,13 +126,14 @@ function buildResults(room) {
 
 /**
  * คิดคะแนนตอนจบรอบ
- * - จับผิดคนอื่นได้ ครั้งละ 1 แต้ม (สะสมมาตอนกดจับ)
- * - รอดจนจบรอบ +2 แต้ม
+ * - จับผิดคนอื่นได้ ครั้งละ 2 แต้ม (สะสมมาตอนกดจับ)
+ * - รอดจนจบรอบอีก 1 แต้ม
+ * สองอย่างนี้บวกกันได้ คนที่จับผิดแล้วรอดด้วยจึงได้ 3
  */
 function commitScores(room) {
   for (const p of room.players.values()) {
     if (!p.playing) continue;
-    const survived = !p.out ? 2 : 0;
+    const survived = !p.out ? SURVIVE_POINTS : 0;
     p.score += (p.roundScore || 0) + survived;
   }
 }

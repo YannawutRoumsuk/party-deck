@@ -48,12 +48,17 @@ function stateFor(room, viewerId) {
 
   const players = [...room.players.values()].map((p) => {
     const base = publicPlayer(p);
-
-    // เห็นคำของคนอื่นได้เมื่อรอบกำลังเล่น หรือเฉลยแล้ว
-    const wordVisible = room.round.running || room.round.revealed;
     const isSelf = !isSpectator && p.id === viewerId;
 
-    base.assigned = wordVisible && !isSelf ? p.assigned : null;
+    // ระหว่างรอบ: เห็นของคนอื่น แต่ของตัวเองต้องไม่หลุดมาถึงเครื่องตัวเองเด็ดขาด
+    // จบรอบแล้ว: เฉลยทั้งวง รวมคำของตัวเองด้วย
+    if (room.round.revealed) {
+      base.assigned = p.assigned;
+    } else if (room.round.running && !isSelf) {
+      base.assigned = p.assigned;
+    } else {
+      base.assigned = null;
+    }
     return base;
   });
 

@@ -689,3 +689,60 @@ input:focus, select:focus { border-color: var(--hot); }
   color: var(--volt);
   line-height: 1.1;
 }
+
+/* ---------- การ์ดเฉลยหลังจบรอบ ---------- */
+
+.reveal-card {
+  border-color: var(--gold);
+  box-shadow: 0 4px 0 oklch(45% 0.11 85);
+}
+
+/* คำของตัวเองคือของที่ทุกคนรอดูมาทั้งรอบ ต้องเด่นที่สุดในหน้า */
+.reveal-mine {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  text-align: center;
+  padding: clamp(0.9rem, 0.6rem + 1.6vw, 1.6rem);
+  background: var(--stage-deep);
+  border: 2px dashed var(--gold);
+  border-radius: var(--r);
+}
+
+.reveal-label {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.reveal-word {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 1.2rem + 4.5vw, 3.6rem);
+  line-height: 1.1;
+  color: var(--gold);
+  overflow-wrap: anywhere;
+}
+
+.reveal-list { display: grid; gap: 0.35rem; }
+
+.reveal-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+}
+
+.reveal-row.is-out { opacity: 0.55; }
+
+.reveal-row-word {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--volt);
+  overflow-wrap: anywhere;
+}
+
+.reveal-row.is-out .reveal-row-word { color: var(--danger); }
