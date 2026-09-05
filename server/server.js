@@ -10,6 +10,11 @@ const G = require("./game");
 const { stateFor } = require("./state");
 const NR = require("./games/numbers/rules");
 const NState = require("./games/numbers/state");
+const SF = require("./games/spyfall/rules");
+const SFState = require("./games/spyfall/state");
+const WW = require("./games/werewolf/rules");
+const WWRoles = require("./games/werewolf/roles");
+const WWState = require("./games/werewolf/state");
 
 const app = express();
 const server = http.createServer(app);
@@ -59,7 +64,9 @@ app.get("/numbers-rules.js", (_req, res) => {
   ["/guess-words.js", "./games/guess/words"],
   ["/guess-rules.js", "./games/guess/rules"],
   ["/chain-thai.js", "./games/chain/thai"],
-  ["/chain-rules.js", "./games/chain/rules"]
+  ["/chain-rules.js", "./games/chain/rules"],
+  ["/spyfall-locations.js", "./games/spyfall/locations"],
+  ["/werewolf-roles.js", "./games/werewolf/roles"]
 ].forEach(([route, mod]) => {
   const file = require.resolve(mod);
   app.get(route, (_req, res) => {
@@ -89,15 +96,18 @@ function pushState(code) {
   const room = rooms.get(code);
   if (!room) return;
 
-  const build = room.gameType === "numbers"
-    ? (viewerId) => NState.roomView(room, viewerId)
-    : (viewerId) => stateFor(room, viewerId);
+  const builders = {
+    numbers: (viewerId) => NState.roomView(room, viewerId),
+    spyfall: (viewerId) => SFState.roomView(room, viewerId),
+    werewolf: (viewerId) => WWState.roomView(room, viewerId)
+  };
+  const build = builders[room.gameType] || ((viewerId) => stateFor(room, viewerId));
 
   for (const p of room.players.values()) {
     if (p.socketId) io.to(p.socketId).emit("state", build(p.id));
   }
   // จอฉายมีเฉพาะเกมคำต้องห้าม
-  if (room.gameType !== "numbers") {
+  if (room.gameType === "forbidden") {
     for (const sid of room.spectators) {
       io.to(sid).emit("state", stateFor(room, null));
     }
@@ -186,7 +196,11 @@ io.on("connection", (socket) => {
 
     // เอารหัสห้องข้ามเกมมาใส่ ต้องบอกให้ชัดว่าไปผิดหน้า ไม่ใช่พังเงียบๆ
     if (gameType && gameType !== room.gameType) {
-      const label = room.gameType === "numbers" ? "เกมทายเลข" : "เกมคำต้องห้าม";
+      const label = {
+        numbers: "เกมทายเลข",
+        spyfall: "เกม Spyfall",
+        werewolf: "เกมหมาป่า"
+      }[room.gameType] || "เกมคำต้องห้าม";
       return socket.emit("wrong-game", {
         gameType: room.gameType,
         roomCode: code,
@@ -226,7 +240,9 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const limit = room.gameType === "numbers" ? cfg.MAX_PLAYERS_NUMBERS : cfg.MAX_PLAYERS;
+    const limit = room.gameType === "numbers" ? cfg.MAX_PLAYERS_NUMBERS
+      : room.gameType === "spyfall" ? SF.MAX_PLAYERS
+      : cfg.MAX_PLAYERS;
     if (room.players.size >= limit) {
       return fail(socket, `ห้องเต็มแล้ว (สูงสุด ${limit} คน)`);
     }
@@ -546,6 +562,236 @@ io.on("connection", (socket) => {
 
     pushState(code);
   });
+
+  // ---------- Spyfall ----------
+
+  function sfCtx(roomCode, opts) {
+    const ctx = contextOf(socket, roomCode, opts);
+    if (ctx.error) return ctx;
+    if (ctx.room.gameType !== "spyfall") return { error: "ห้องนี้ไม่ใช่เกม Spyfall" };
+    return ctx;
+  }
+
+  socket.on("spyfall-settings", ({ roomCode, packIds, minutes }) => {
+    const ctx = sfCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+
+    const mins = Number(minutes);
+    ctx.room.spyfallSettings = {
+      packIds: Array.isArray(packIds) && packIds.length ? packIds : ["thai"],
+      minutes: Number.isFinite(mins) ? Math.max(3, Math.min(Math.round(mins), 15)) : 8
+    };
+    pushState(ctx.code);
+  });
+
+  socket.on("spyfall-start", ({ roomCode }) => {
+    const ctx = sfCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room } = ctx;
+
+    const ids = [...room.players.values()].filter((p) => p.connected).map((p) => p.id);
+    try {
+      if (!room.spyfallGame || room.spyfallGame.playerIds.length !== ids.length) {
+        room.spyfallGame = SF.createGame(ids, room.spyfallSettings);
+      } else {
+        room.spyfallGame.packIds = room.spyfallSettings.packIds;
+        room.spyfallGame.minutes = room.spyfallSettings.minutes;
+      }
+      SF.startRound(room.spyfallGame);
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+
+    announce(code, "spyfall-started", { round: room.spyfallGame.round });
+    pushState(code);
+  });
+
+  socket.on("spyfall-guess", ({ roomCode, location }) => {
+    const ctx = sfCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    try {
+      SF.spyGuess(ctx.room.spyfallGame, ctx.player.id, location);
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+    commitSpyfall(ctx.room);
+    announce(ctx.code, "spyfall-ended", { result: ctx.room.spyfallGame.result });
+    pushState(ctx.code);
+  });
+
+  socket.on("spyfall-accuse", ({ roomCode, targetId }) => {
+    const ctx = sfCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    try {
+      SF.startVote(ctx.room.spyfallGame, ctx.player.id, String(targetId || ""));
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+    announce(ctx.code, "spyfall-vote-open", { targetId });
+    pushState(ctx.code);
+  });
+
+  socket.on("spyfall-vote", ({ roomCode, agree }) => {
+    const ctx = sfCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    try {
+      SF.castVote(ctx.room.spyfallGame, ctx.player.id, !!agree);
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+
+    // ทุกคนที่โหวตได้ลงคะแนนครบแล้วปิดโหวตเลย ไม่ต้องรอใครกด
+    const g = ctx.room.spyfallGame;
+    const tally = SF.voteTally(g);
+    if (tally.total >= tally.needed) {
+      SF.resolveVote(g);
+      if (g.phase === "finished") {
+        commitSpyfall(ctx.room);
+        announce(ctx.code, "spyfall-ended", { result: g.result });
+      } else {
+        announce(ctx.code, "spyfall-vote-failed", {});
+      }
+    }
+    pushState(ctx.code);
+  });
+
+  socket.on("spyfall-timeup", ({ roomCode }) => {
+    const ctx = sfCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return;
+    const g = ctx.room.spyfallGame;
+    if (!g || g.phase !== "playing") return;
+
+    SF.timeUp(g);
+    commitSpyfall(ctx.room);
+    announce(ctx.code, "spyfall-ended", { result: g.result });
+    pushState(ctx.code);
+  });
+
+  function commitSpyfall(room) {
+    const g = room.spyfallGame;
+    if (!g || !g.result) return;
+    Object.keys(g.result.scores).forEach((id) => {
+      const p = room.players.get(id);
+      if (p) p.score = (p.score || 0) + g.result.scores[id];
+    });
+  }
+
+  // ---------- หมาป่า ----------
+
+  function wwCtx(roomCode, opts) {
+    const ctx = contextOf(socket, roomCode, opts);
+    if (ctx.error) return ctx;
+    if (ctx.room.gameType !== "werewolf") return { error: "ห้องนี้ไม่ใช่เกมหมาป่า" };
+    return ctx;
+  }
+
+  socket.on("werewolf-settings", ({ roomCode, presetId, comp }) => {
+    const ctx = wwCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+
+    ctx.room.werewolfSettings = {
+      presetId: presetId || null,
+      comp: comp && typeof comp === "object" ? comp : null
+    };
+    pushState(ctx.code);
+  });
+
+  socket.on("werewolf-start", ({ roomCode }) => {
+    const ctx = wwCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room } = ctx;
+
+    const list = [...room.players.values()]
+      .filter((p) => p.connected)
+      .map((p) => ({ id: p.id, name: p.name, score: p.score || 0 }));
+
+    const settings = room.werewolfSettings || {};
+    const comp = settings.comp || WWRoles.composeFromPreset(settings.presetId || "starter", list.length);
+
+    try {
+      room.werewolfGame = WW.createGame(list, comp);
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+
+    announce(code, "werewolf-started", {});
+    pushState(code);
+  });
+
+  socket.on("werewolf-night", ({ roomCode, payload }) => {
+    const ctx = wwCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    try {
+      WW.nightAction(ctx.room.werewolfGame, ctx.player.id, payload || {});
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+    afterWerewolf(ctx);
+  });
+
+  socket.on("werewolf-skip", ({ roomCode }) => {
+    const ctx = wwCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    WW.skipStep(ctx.room.werewolfGame);
+    afterWerewolf(ctx);
+  });
+
+  socket.on("werewolf-start-vote", ({ roomCode }) => {
+    const ctx = wwCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    try {
+      WW.startVote(ctx.room.werewolfGame);
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+    afterWerewolf(ctx);
+  });
+
+  socket.on("werewolf-vote", ({ roomCode, targetId }) => {
+    const ctx = wwCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    try {
+      WW.castVote(ctx.room.werewolfGame, ctx.player.id, targetId || null);
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+    pushState(ctx.code);
+  });
+
+  socket.on("werewolf-resolve-vote", ({ roomCode }) => {
+    const ctx = wwCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    try {
+      WW.resolveVote(ctx.room.werewolfGame);
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+    afterWerewolf(ctx);
+  });
+
+  socket.on("werewolf-hunter", ({ roomCode, targetId }) => {
+    const ctx = wwCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    try {
+      WW.hunterShoot(ctx.room.werewolfGame, ctx.player.id, String(targetId || ""));
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+    afterWerewolf(ctx);
+  });
+
+  function afterWerewolf(ctx) {
+    const g = ctx.room.werewolfGame;
+    if (g && g.phase === "finished" && !g.committed) {
+      g.committed = true;
+      Object.keys(g.result.scores).forEach((id) => {
+        const p = ctx.room.players.get(id);
+        if (p) p.score = (p.score || 0) + g.result.scores[id];
+      });
+      announce(ctx.code, "werewolf-ended", { result: g.result });
+    }
+    pushState(ctx.code);
+  }
 
   socket.on("leave-room", ({ roomCode }) => {
     const ctx = contextOf(socket, roomCode);

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#1a0f22" />
+  <meta name="description" content="บอร์ดเกมหมาป่า Werewolf ภาษาไทย แอปเป็นคนคุมเกมให้ ทุกคนได้เล่นครบไม่ต้องมีใครมานั่งคุม มีบทบาทครบทั้งผู้พยากรณ์ หมอ นักล่า แม่มด คิวปิด เลือกชุดบทบาทเองได้">
+  <meta name="keywords" content="werewolf, หมาป่า, mafia, บอร์ดเกม, เกมปาร์ตี้, เกมเล่นกับเพื่อน, เกมสวมบทบาท">
+  <title>หมาป่า | Werewolf</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <main id="screenSetup" class="container stack-lg">
+    <section class="hero">
+      <p class="kicker">5–16 คน · คนละเครื่อง</p>
+      <h1>บอร์ดเกม<mark>หมาป่า</mark></h1>
+      <p class="muted" style="max-width:54ch">
+        กลางคืนหมาป่าออกล่า กลางวันชาวบ้านโหวตประหาร
+        แอปเป็นคนคุมเกมให้เอง <b>ทุกคนได้เล่นครบ</b> ไม่ต้องมีใครเสียสละมานั่งคุม
+      </p>
+    </section>
+
+    <div class="grid2">
+      <section class="card card-hot">
+        <header><h2>สร้างห้อง</h2></header>
+        <div>
+          <label for="createName">ชื่อของคุณ</label>
+          <input id="createName" maxlength="24" placeholder="เช่น ต้น" autocomplete="nickname" />
+        </div>
+        <button id="btnCreate" class="primary block">สร้างห้อง</button>
+        <p id="createMsg" class="faint" role="status"></p>
+      </section>
+
+      <section class="card">
+        <header><h2>เข้าห้องเพื่อน</h2></header>
+        <div>
+          <label for="joinCode">รหัสห้อง</label>
+          <input id="joinCode" class="code-input" maxlength="5" placeholder="ABCD2" autocomplete="off" autocapitalize="characters" />
+        </div>
+        <div>
+          <label for="joinName">ชื่อของคุณ</label>
+          <input id="joinName" maxlength="24" placeholder="เช่น เจได" autocomplete="nickname" />
+        </div>
+        <button id="btnJoin" class="volt block">เข้าห้อง</button>
+        <p id="joinMsg" class="faint" role="status"></p>
+      </section>
+    </div>
+
+    <section class="card">
+      <header><h2>กติกา</h2></header>
+      <ul class="info-list">
+        <li><b>กลางคืน</b> แอปปลุกทีละบทบาท หมาป่าเลือกเหยื่อร่วมกัน หมอปกป้อง ผู้พยากรณ์ตรวจ</li>
+        <li><b>กลางวัน</b> ประกาศว่าใครตาย คุยกัน แล้วโหวตประหารด้วยเสียงข้างมาก</li>
+        <li><b>ตายแล้วไม่เฉลยบทบาท</b> รู้กันตอนจบเกมเท่านั้น</li>
+        <li>ชาวบ้านชนะเมื่อฆ่าหมาป่าหมด หมาป่าชนะเมื่อจำนวนเท่ากับชาวบ้าน</li>
+      </ul>
+      <a class="btn ghost" href="/">กลับหน้าเลือกเกม</a>
+    </section>
+  </main>
+
+  <main id="screenPlay" class="container stack-lg" hidden>
+    <header class="topbar" style="border-radius:var(--r-lg);margin-bottom:var(--gap)">
+      <div class="grow">
+        <div class="room-tag">ห้อง <span id="roomCode">-----</span></div>
+        <div class="faint" id="subtitle">-</div>
+      </div>
+      <div id="clock" class="timer idle">--</div>
+    </header>
+
+    <!-- บทบาทของฉัน -->
+    <section id="roleSection" class="card" hidden>
+      <header><h2>บทบาทของคุณ</h2></header>
+      <div id="myRole" class="role-card"></div>
+      <div id="allyBox" class="stack" style="gap:0.3rem"></div>
+    </section>
+
+    <!-- แถบบอกช่วงเวลา -->
+    <section id="phaseSection" class="card" hidden>
+      <div id="phaseBanner" class="phase-banner">
+        <div class="phase-title" id="phaseTitle">-</div>
+        <div class="faint" id="phaseSub">-</div>
+      </div>
+    </section>
+
+    <!-- สิ่งที่ฉันต้องทำ -->
+    <section id="actionSection" class="card card-hot" hidden>
+      <header>
+        <h2 id="actionTitle">ถึงตาคุณ</h2>
+        <p class="faint" id="actionHint">-</p>
+      </header>
+      <div id="actionExtra" class="stack" style="gap:0.5rem"></div>
+      <div id="pickGrid" class="player-pick-grid"></div>
+      <div id="actionButtons" class="row"></div>
+      <p id="actionMsg" class="faint" role="status"></p>
+    </section>
+
+    <!-- ผลการตรวจ (เห็นคนเดียว) -->
+    <section id="inspectSection" class="card" hidden>
+      <header><h2>ผลการตรวจของคุณ</h2></header>
+      <div id="inspectResult" class="spy-card"></div>
+    </section>
+
+    <!-- โหวตประหาร -->
+    <section id="voteSection" class="card" hidden>
+      <header>
+        <h2>โหวตประหาร</h2>
+        <p class="faint">เสียงข้างมากถูกประหาร คะแนนเสมอไม่ประหารใคร</p>
+      </header>
+      <div id="voteGrid" class="player-pick-grid"></div>
+      <p id="voteTally" class="faint"></p>
+      <button id="btnResolveVote" class="danger block" hidden>ปิดโหวต</button>
+    </section>
+
+    <!-- ผู้เล่น -->
+    <section class="card">
+      <header>
+        <h2>ผู้เล่น</h2>
+        <p class="faint" id="aliveCount">-</p>
+      </header>
+      <div id="playerList" class="stack" style="gap:0.4rem"></div>
+    </section>
+
+    <!-- ผล -->
+    <section id="resultSection" class="card reveal-card" hidden>
+      <header><h2 id="resultTitle">จบเกม</h2></header>
+      <div id="resultReveal" class="stack" style="gap:0.4rem"></div>
+    </section>
+
+    <!-- ตั้งค่า (โฮสต์) -->
+    <section id="setupSection" class="card" hidden>
+      <header>
+        <h2>จัดชุดบทบาท</h2>
+        <p class="faint" id="compSummary">-</p>
+      </header>
+
+      <div>
+        <label>เซ็ตแนะนำ</label>
+        <div id="presetPicker" class="choice-grid"></div>
+      </div>
+
+      <details>
+        <summary style="cursor:pointer;padding:0.5rem 0">ปรับเอง ทีละบทบาท</summary>
+        <div id="compEditor" class="stack" style="gap:0.4rem;margin-top:0.5rem"></div>
+      </details>
+
+      <p id="compProblems" class="faint" role="status"></p>
+      <button id="btnStart" class="primary block">เริ่มเกม</button>
+    </section>
+
+    <!-- ควบคุมของโฮสต์ -->
+    <section id="hostControls" class="card" hidden>
+      <header><h2>ควบคุม (โฮสต์)</h2></header>
+      <div class="row">
+        <button id="btnSkip" class="ghost grow">ข้ามขั้นตอนนี้</button>
+        <button id="btnStartVote" class="danger grow">เปิดโหวตประหาร</button>
+      </div>
+      <button id="btnRestart" class="ghost block">เริ่มเกมใหม่</button>
+    </section>
+
+    <!-- ชวนเพื่อน -->
+    <section class="card">
+      <header><h2>ชวนเพื่อน</h2></header>
+      <div class="invite">
+        <figure class="qr-figure">
+          <button id="btnShowQr" class="qr-box qr-tap" aria-label="ขยาย QR">
+            <span id="qrInvite" class="qr-slot"></span>
+          </button>
+          <figcaption class="qr-caption"><b>QR เชิญเพื่อน</b><span class="faint">จิ้มเพื่อขยาย</span></figcaption>
+        </figure>
+        <div class="invite-side">
+          <label>รหัสห้อง</label>
+          <div class="big-code" id="bigCode">-----</div>
+        </div>
+      </div>
+      <button id="btnQuit" class="ghost">ออกจากห้อง</button>
+    </section>
+  </main>
+
+  <div id="qrModal" class="qr-modal" hidden role="dialog" aria-modal="true" aria-label="QR เข้าห้อง">
+    <div class="qr-modal-inner">
+      <div id="qrBig" class="qr-box qr-box-lg"></div>
+      <div class="qr-modal-code" id="qrModalCode">-----</div>
+      <button id="btnCloseQr" class="ghost block">ปิด</button>
+    </div>
+  </div>
+
+  <div id="toasts" class="toast-wrap" aria-live="polite"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/vendor/qrcode.js"></script>
+  <script src="/werewolf-roles.js"></script>
+  <script src="/store.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/qr.js"></script>
+  <script src="/werewolf.js"></script>
+</body>
+</html>

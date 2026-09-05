@@ -125,6 +125,7 @@
   var roomCode = null;
   var session = {};
   var remote = null;   // state ล่าสุดจาก server
+  var joinSent = false;   // กันยิง join ซ้ำจนกลายเป็นผู้เล่นสองคน
 
   function connectOnline() {
     if (socket) return socket;
@@ -460,7 +461,8 @@
 
   function wireOnline() {
     socket.on("connect", function () {
-      if (!roomCode) return;
+      if (!roomCode || joinSent) return;
+      joinSent = true;
       var prev = FWStore.readSession(roomCode) || {};
       socket.emit("join-room", {
         roomCode: roomCode,
@@ -593,6 +595,7 @@
     FWStore.rememberName(name);
     roomCode = code;
     var prev = FWStore.readSession(code) || {};
+    joinSent = true;
     connectOnline().emit("join-room", {
       roomCode: code, name: name, playerId: prev.playerId || null, gameType: GAME_TYPE
     });

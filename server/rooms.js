@@ -67,7 +67,7 @@ function createRoom(rooms, gameType) {
   const room = {
     code,
     // ห้องสองเกมอยู่ใน Map เดียวกัน ต้องรู้ว่าเป็นเกมไหนเพื่อกันเข้าผิดเกม
-    gameType: gameType === "numbers" ? "numbers" : "forbidden",
+    gameType: ["numbers", "spyfall", "werewolf"].indexOf(gameType) >= 0 ? gameType : "forbidden",
     spectatorKey: randomSpectatorKey(),
     hostId: null,
     players: new Map(),   // playerId -> player
@@ -87,13 +87,33 @@ function createRoom(rooms, gameType) {
 
     // ใช้เฉพาะเกมทายเลข
     numbersSettings: { format: "single", maxGuesses: 5 },
-    numbersMatch: null
+    numbersMatch: null,
+
+    // ใช้เฉพาะ Spyfall
+    spyfallSettings: { packIds: ["thai"], minutes: 8 },
+    spyfallGame: null,
+
+    // ใช้เฉพาะหมาป่า
+    werewolfSettings: { presetId: "starter", comp: null },
+    werewolfGame: null
   };
   rooms.set(code, room);
   return room;
 }
 
 function attachSocket(room, player, socketId) {
+  // หนึ่ง socket ต้องเป็นผู้เล่นได้คนเดียวเท่านั้น
+  // ถ้า client ยิง join ซ้ำ (เช่นกดปุ่มแล้ว handler connect ยิงตามอีกที)
+  // จะได้ไม่กลายเป็นผู้เล่นสองคนที่ถือ socket เดียวกัน
+  // ซึ่งทำให้ findPlayerBySocket ได้คนหนึ่ง แต่ pushState ส่ง view ของอีกคน
+  for (const other of room.players.values()) {
+    if (other.id !== player.id && other.socketId === socketId) {
+      other.socketId = null;
+      other.connected = false;
+      other.disconnectedAt = Date.now();
+    }
+  }
+
   player.socketId = socketId;
   player.connected = true;
   player.disconnectedAt = null;

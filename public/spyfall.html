@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#1a0f22" />
+  <meta name="description" content="เกม Spyfall ภาษาไทย สายลับคนเดียวไม่รู้ว่าอยู่ที่ไหน คนอื่นรู้สถานที่แต่ไม่รู้ว่าใครเป็นสายลับ ถามตอบกันจนหมดเวลาแล้วโหวตจับ เล่นคนละเครื่อง">
+  <meta name="keywords" content="spyfall, เกมสายลับ, เกมปาร์ตี้, เกมเล่นกับเพื่อน, บอร์ดเกม, เกมทายสถานที่">
+  <title>สายลับ | Spyfall</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <main id="screenSetup" class="container stack-lg">
+    <section class="hero">
+      <p class="kicker">3–12 คน · คนละเครื่อง</p>
+      <h1>เกม<mark>สายลับ</mark></h1>
+      <p class="muted" style="max-width:54ch">
+        ทุกคนอยู่สถานที่เดียวกันและรู้ว่าที่ไหน ยกเว้นสายลับหนึ่งคนที่ไม่รู้อะไรเลย
+        ถามตอบกันเพื่อหาสายลับ ส่วนสายลับต้องเดาให้ออกว่าที่นี่คือที่ไหน
+      </p>
+    </section>
+
+    <div class="grid2">
+      <section class="card card-hot">
+        <header><h2>สร้างห้อง</h2></header>
+        <div>
+          <label for="createName">ชื่อของคุณ</label>
+          <input id="createName" maxlength="24" placeholder="เช่น ต้น" autocomplete="nickname" />
+        </div>
+        <button id="btnCreate" class="primary block">สร้างห้อง</button>
+        <p id="createMsg" class="faint" role="status"></p>
+      </section>
+
+      <section class="card">
+        <header><h2>เข้าห้องเพื่อน</h2></header>
+        <div>
+          <label for="joinCode">รหัสห้อง</label>
+          <input id="joinCode" class="code-input" maxlength="5" placeholder="ABCD2" autocomplete="off" autocapitalize="characters" />
+        </div>
+        <div>
+          <label for="joinName">ชื่อของคุณ</label>
+          <input id="joinName" maxlength="24" placeholder="เช่น เจได" autocomplete="nickname" />
+        </div>
+        <button id="btnJoin" class="volt block">เข้าห้อง</button>
+        <p id="joinMsg" class="faint" role="status"></p>
+      </section>
+    </div>
+
+    <section class="card">
+      <header><h2>กติกา</h2></header>
+      <ul class="info-list">
+        <li>ทุกคนได้การ์ดบอก<b>สถานที่และบทบาท</b> ยกเว้นสายลับที่ได้แค่คำว่า "สายลับ"</li>
+        <li>ผลัดกันถามคำถามกันเอง คำถามต้องไม่เปิดเผยสถานที่จนสายลับเดาออก</li>
+        <li>สายลับ<b>หยุดเกมทายสถานที่</b>ได้ทุกเมื่อ ถูกได้ 4 แต้ม ผิดแพ้ทันที</li>
+        <li>ใครก็ได้<b>เปิดโหวตกล่าวหา</b> ใช้เสียงข้างมาก จับถูกคนเปิดโหวตได้โบนัส</li>
+        <li>หมดเวลาโดยไม่มีใครจับได้ สายลับได้ 2 แต้ม</li>
+      </ul>
+      <a class="btn ghost" href="/">กลับหน้าเลือกเกม</a>
+    </section>
+  </main>
+
+  <main id="screenPlay" class="container stack-lg" hidden>
+    <header class="topbar" style="border-radius:var(--r-lg);margin-bottom:var(--gap)">
+      <div class="grow">
+        <div class="room-tag">ห้อง <span id="roomCode">-----</span></div>
+        <div class="faint" id="subtitle">-</div>
+      </div>
+      <div id="clock" class="timer idle">--:--</div>
+    </header>
+
+    <!-- การ์ดของฉัน -->
+    <section id="cardSection" class="card card-hot" hidden>
+      <header><h2>การ์ดของคุณ</h2></header>
+      <div id="myCard" class="spy-card"></div>
+    </section>
+
+    <!-- ปุ่มระหว่างเล่น -->
+    <section id="actionCard" class="card" hidden>
+      <header>
+        <h2>ทำอะไรได้บ้าง</h2>
+        <p class="faint" id="actionHint">-</p>
+      </header>
+      <div class="row">
+        <button id="btnAccuse" class="danger grow">เปิดโหวตกล่าวหา</button>
+        <button id="btnSpyGuess" class="volt grow" hidden>ทายสถานที่</button>
+      </div>
+      <div id="accusePicker" class="buzz-grid" hidden></div>
+      <div id="guessPicker" class="loc-grid" hidden></div>
+    </section>
+
+    <!-- โหวต -->
+    <section id="voteCard" class="card card-hot" hidden>
+      <header>
+        <h2 id="voteTitle">-</h2>
+        <p class="faint" id="voteSub">-</p>
+      </header>
+      <div class="row">
+        <button id="btnVoteYes" class="danger grow">ใช่ เขาคือสายลับ</button>
+        <button id="btnVoteNo" class="ghost grow">ไม่ใช่</button>
+      </div>
+      <p class="faint" id="voteTally">-</p>
+    </section>
+
+    <!-- รายชื่อสถานที่ -->
+    <section class="card">
+      <header>
+        <h2>สถานที่ทั้งหมด</h2>
+        <p class="faint">ใช้ตัดตัวเลือกตอนฟังคำตอบ สายลับใช้เดา</p>
+      </header>
+      <div id="locList" class="loc-grid"></div>
+    </section>
+
+    <!-- ผล -->
+    <section id="resultCard" class="card reveal-card" hidden>
+      <header><h2 id="resultTitle">จบรอบ</h2></header>
+      <p id="resultDetail" class="muted"></p>
+      <div id="resultScores" class="stack" style="gap:0.4rem"></div>
+      <button id="btnNext" class="volt block" hidden>เริ่มรอบใหม่</button>
+    </section>
+
+    <!-- ผู้เล่น -->
+    <section class="card">
+      <header><h2>ผู้เล่น</h2></header>
+      <div id="playerList" class="stack" style="gap:0.4rem"></div>
+      <button id="btnStart" class="primary block" hidden>เริ่มรอบ</button>
+    </section>
+
+    <!-- ตั้งค่า -->
+    <section id="settingsCard" class="card" hidden>
+      <header><h2>ตั้งค่า (โฮสต์)</h2></header>
+      <div>
+        <label>ชุดสถานที่</label>
+        <div id="packPicker" class="choice-grid"></div>
+      </div>
+      <div>
+        <label for="minutes">เวลาต่อรอบ (นาที)</label>
+        <input id="minutes" type="number" min="3" max="15" value="8" inputmode="numeric" />
+      </div>
+    </section>
+
+    <!-- ชวนเพื่อน -->
+    <section class="card">
+      <header><h2>ชวนเพื่อน</h2></header>
+      <div class="invite">
+        <figure class="qr-figure">
+          <button id="btnShowQr" class="qr-box qr-tap" aria-label="ขยาย QR">
+            <span id="qrInvite" class="qr-slot"></span>
+          </button>
+          <figcaption class="qr-caption"><b>QR เชิญเพื่อน</b><span class="faint">จิ้มเพื่อขยาย</span></figcaption>
+        </figure>
+        <div class="invite-side">
+          <label>รหัสห้อง</label>
+          <div class="big-code" id="bigCode">-----</div>
+        </div>
+      </div>
+      <button id="btnQuit" class="ghost">ออกจากห้อง</button>
+    </section>
+  </main>
+
+  <div id="qrModal" class="qr-modal" hidden role="dialog" aria-modal="true" aria-label="QR เข้าห้อง">
+    <div class="qr-modal-inner">
+      <div id="qrBig" class="qr-box qr-box-lg"></div>
+      <div class="qr-modal-code" id="qrModalCode">-----</div>
+      <button id="btnCloseQr" class="ghost block">ปิด</button>
+    </div>
+  </div>
+
+  <div id="toasts" class="toast-wrap" aria-live="polite"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/vendor/qrcode.js"></script>
+  <script src="/spyfall-locations.js"></script>
+  <script src="/store.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/qr.js"></script>
+  <script src="/spyfall.js"></script>
+</body>
+</html>

@@ -1066,3 +1066,122 @@ input:focus, select:focus { border-color: var(--hot); }
 }
 
 .score-row.lost { opacity: 0.5; }
+
+/* ---------- Spyfall ---------- */
+
+.spy-card {
+  display: grid;
+  gap: 0.3rem;
+  justify-items: center;
+  text-align: center;
+  padding: clamp(1rem, 0.6rem + 2vw, 2rem);
+  background: var(--stage-deep);
+  border: 2px dashed var(--volt);
+  border-radius: var(--r);
+}
+
+.spy-card.is-spy { border-color: var(--danger); }
+
+.spy-label { font-size: var(--t-small); font-weight: 600; color: var(--muted); }
+
+.spy-place {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 1.2rem + 3.5vw, 3rem);
+  line-height: 1.1;
+  color: var(--volt);
+  overflow-wrap: anywhere;
+}
+
+.spy-role {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.2rem, 0.9rem + 1.6vw, 1.9rem);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.spy-card.is-spy .spy-role { color: var(--danger); }
+
+.loc-grid { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+.loc-chip {
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 0.8rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ขีดฆ่าไว้ช่วยจำว่าตัดที่ไหนออกไปแล้ว เก็บในเครื่องตัวเองไม่ส่งให้ใคร */
+.loc-chip.crossed { opacity: 0.35; text-decoration: line-through; }
+.loc-chip.pick { min-height: 40px; border-color: var(--volt); color: var(--volt); }
+
+/* ---------- หมาป่า ---------- */
+
+.role-card {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: center;
+  text-align: center;
+  padding: clamp(1rem, 0.6rem + 2vw, 1.8rem);
+  background: var(--stage-deep);
+  border: 2px solid var(--line);
+  border-radius: var(--r);
+}
+
+.role-card.team-wolf { border-color: var(--danger); }
+.role-card.team-village { border-color: var(--volt); }
+.role-card.team-solo { border-color: var(--gold); }
+
+.role-emoji { font-size: 3rem; line-height: 1; }
+
+.role-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 1.1rem + 2.6vw, 2.6rem);
+}
+
+.role-card.team-wolf .role-name { color: var(--danger); }
+.role-card.team-village .role-name { color: var(--volt); }
+.role-card.team-solo .role-name { color: var(--gold); }
+
+.phase-banner {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: center;
+  padding: clamp(0.8rem, 0.5rem + 1.5vw, 1.4rem);
+  border-radius: var(--r);
+  text-align: center;
+}
+
+.phase-banner.night { background: oklch(20% 0.06 265 / 0.5); border: 2px solid oklch(50% 0.12 265); }
+.phase-banner.day { background: oklch(35% 0.1 85 / 0.28); border: 2px solid var(--gold); }
+
+.phase-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.4rem, 1rem + 2vw, 2.2rem);
+}
+
+.player-pick-grid { display: grid; gap: 0.5rem; grid-template-columns: 1fr 1fr; }
+@media (min-width: 700px) { .player-pick-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } }
+
+.pick-btn { min-height: 60px; }
+.pick-btn.dead { opacity: 0.4; text-decoration: line-through; }
+.pick-btn.ally { border-color: var(--danger); color: var(--danger); }
+
+.comp-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+}
+
+.comp-row .stepper { display: flex; align-items: center; gap: 0.35rem; }
+.comp-row .stepper button { min-height: 36px; min-width: 36px; padding: 0; }
+.comp-count { font-family: var(--font-display); font-weight: 700; min-width: 1.5rem; text-align: center; }
