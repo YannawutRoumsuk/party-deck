@@ -2,84 +2,125 @@
 <html lang="th">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>คำต้องห้าม | Forbidden Word</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#1a0f22" />
+  <meta name="robots" content="noindex" />
+  <title>ห้องเกม | คำต้องห้าม</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <div class="container">
-    <div class="topbar">
+
+  <header class="topbar">
+    <div class="grow">
+      <div class="room-tag">ห้อง <span id="roomCode">-----</span></div>
+      <div class="faint"><span id="yourName">-</span> <span id="roundLabel"></span></div>
+    </div>
+    <div id="timer" class="timer idle">--:--</div>
+  </header>
+
+  <main class="container stack-lg">
+
+    <!-- ก่อนเริ่มรอบ: ส่งคำ -->
+    <section id="wordCard" class="card card-hot">
+      <header>
+        <h2>ส่งคำของคุณ</h2>
+        <p class="faint">คำนี้จะถูกสุ่มไปให้เพื่อนคนอื่นถือ ไม่ใช่คุณ</p>
+      </header>
       <div>
-        <h1>ห้อง <span id="roomCode">-</span></h1>
-        <div class="sub">ชื่อของคุณ: <b id="yourName">-</b> <span id="hostBadge" class="badge"></span></div>
+        <label for="wordInput" class="sr-only">คำต้องห้ามที่คุณอยากส่ง</label>
+        <input id="wordInput" placeholder="เช่น กิน / รถ / ไก่" maxlength="40" autocomplete="off" />
       </div>
-      <div class="right">
-        <div class="timer">
-          <div class="timer-label">เวลา</div>
-          <div id="timerText" class="timer-value">--:--</div>
+      <div class="row">
+        <button id="btnSubmitWord" class="primary grow">ส่งคำ</button>
+        <span id="wordStatus" class="faint"></span>
+      </div>
+    </section>
+
+    <!-- ผู้เล่นและคำของแต่ละคน -->
+    <section class="card">
+      <header class="spread">
+        <div>
+          <h2>ผู้เล่น</h2>
+          <p id="playerHint" class="faint">คุณจะเห็นคำของทุกคน ยกเว้นของตัวเอง</p>
+        </div>
+        <span id="playerCount" class="badge"></span>
+      </header>
+      <div id="players" class="player-grid"></div>
+    </section>
+
+    <!-- คะแนน -->
+    <section class="card">
+      <header><h2>คะแนนรวม</h2></header>
+      <div id="scoreboard" class="stack" style="gap:0.4rem"></div>
+      <p class="faint">จับผิดได้ครั้งละ 1 แต้ม &middot; รอดจนจบรอบ +2 แต้ม</p>
+    </section>
+
+    <!-- เครื่องมือโฮสต์ -->
+    <section id="hostCard" class="card" hidden>
+      <header>
+        <h2>เครื่องมือโฮสต์</h2>
+        <p class="faint">เห็นเฉพาะคุณ</p>
+      </header>
+
+      <div class="row">
+        <div class="grow">
+          <label for="durationMin">เวลาต่อรอบ (นาที)</label>
+          <input id="durationMin" type="number" min="1" max="15" step="1" value="3" inputmode="numeric" />
         </div>
       </div>
-    </div>
 
-    <div class="grid2">
-      <div class="card">
-        <h2>ผู้เล่น</h2>
-        <div id="players" class="list"></div>
-        <div class="row">
-          <button id="btnLeave" class="ghost">ออกจากห้อง</button>
-        </div>
+      <div class="row">
+        <button id="btnStart" class="volt grow">เริ่มรอบ</button>
+        <button id="btnPause" class="ghost">พัก</button>
+        <button id="btnEnd" class="danger">จบรอบ</button>
       </div>
 
-      <div class="card">
-        <h2>ใส่คำที่ต้องการ</h2>
-        <p class="hint">คำนี้จะถูกสุ่มให้ผู้เล่นคนอื่น</p>
-        <input id="wordInput" placeholder="เช่น กิน / รถ / ไก่" maxlength="40" />
-        <div class="row">
-          <button id="btnSubmit" class="primary">ส่งคำ</button>
-          <span id="wordStatus" class="hint"></span>
-        </div>
-
-        <hr />
-
-        <div class="row">
-          <label class="hint">เวลารอบ (นาที)</label>
-          <input id="durationMin" type="number" min="1" max="5" value="1" style="max-width:120px" />
-        </div>
-
-        <div class="row">
-          <button id="btnStart" class="primary">เริ่มรอบ (โฮสต์)</button>
-          <button id="btnPause" class="secondary">หยุดชั่วคราว (โฮสต์)</button>
-          <button id="btnReset" class="danger">รีเซ็ตรอบ (โฮสต์)</button>
-        </div>
-
-        <div class="row">
-          <button id="btnEndGame" class="danger">จบเกม (แสดงผลทั้งหมด)</button>
-        </div>
-
-        <p id="msg" class="hint"></p>
+      <div class="row">
+        <button id="btnUndo" class="ghost grow">ยกเลิกการจับผิดล่าสุด</button>
+        <button id="btnReset" class="ghost">ล้างคะแนน</button>
       </div>
-    </div>
 
-    <div class="card">
-      <h2>คะแนน</h2>
-      <div id="scoreboard" class="list"></div>
-      <p class="hint">คะแนนรอบนี้จะรวมเมื่อจบรอบหรือจบเกม</p>
-    </div>
+      <hr class="divider" />
 
-    <div class="card">
-      <h2>รายชื่อคำของแต่ละผู้เล่น</h2>
-      <div id="results" class="results"></div>
-      <p class="hint">คำที่คุณส่งจะถูกสุ่มให้ผู้เล่นคนอื่น และคุณจะไม่เห็นคำที่คุณได้รับจากการสุ่ม ตามกติกา</p>
-    </div>
+      <div>
+        <label>ลิงก์จอฉาย (ขึ้นทีวี / สตรีม)</label>
+        <p class="faint" style="margin-bottom:0.4rem">
+          จอนี้เห็นคำของ<b>ทุกคน</b> อย่าเปิดให้ผู้เล่นเห็นเด็ดขาด
+        </p>
+        <div class="copy-field">
+          <code id="streamLink">-</code>
+          <button id="btnCopyStream" class="mini ghost">คัดลอก</button>
+        </div>
+        <div class="row" style="margin-top:0.5rem">
+          <a id="openStream" class="btn ghost mini" target="_blank" rel="noopener">เปิดจอฉาย</a>
+        </div>
+      </div>
+    </section>
 
-    <div class="card">
-      <h2>คำแนะนำ</h2>
-      <p class="hint">ควรกำหนดกติกาให้ชัดเจนก่อนเริ่มใส่คำ เช่น 1 พยางค์ทุกคน / ใช้คำกริยาทั้งหมด</p>
-    </div>
+    <section class="card">
+      <header><h2>ลิงก์ชวนเพื่อน</h2></header>
+      <div class="copy-field">
+        <code id="inviteLink">-</code>
+        <button id="btnCopyInvite" class="mini ghost">คัดลอก</button>
+      </div>
+      <button id="btnLeave" class="ghost">ออกจากห้อง</button>
+    </section>
 
+  </main>
+
+  <!-- แถบจับผิดแบบติดล่าง มือเดียวก็กดถึง -->
+  <div id="actionbar" class="actionbar" hidden>
+    <p class="faint" style="margin:0">ได้ยินใครพูดคำตัวเอง กดชื่อคนนั้นเลย</p>
+    <div id="callButtons" class="row"></div>
   </div>
 
+  <div id="toasts" class="toast-wrap" aria-live="polite"></div>
+
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/client.js"></script>
+  <script src="/store.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/game.js"></script>
 </body>
 </html>

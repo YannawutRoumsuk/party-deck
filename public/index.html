@@ -2,114 +2,107 @@
 <html lang="th">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="google-site-verification" content="FFIRyKMR7eLs1G2Z0psdzx_FXGGRWcEXucLp4NfVlMs" />
-  <meta name="description" content="เกมคำต้องห้ามแบบเดียวกับที่เทพลีลาเล่น เกมปาร์ตี้สายฮา เล่นกับเพื่อน ใครเผลอพูดคำต้องห้ามโดนลงโทษทันที สนุก ฉิบหาย วงแตกแน่นอน">
-  <meta name="keywords" content="เกมคำต้องห้าม, เกมเทพลีลา, forbidden word game, เกมปาร์ตี้, เกมเล่นกับเพื่อน,เกมพูดห้ามพูด, เกมสายฮา, เกมกลุ่มเพื่อน, party game ภาษาไทย,เกมสตรีมเมอร์, เกมเล่นในวงเหล้า, เกมออนไลน์เล่นกับเพื่อน">
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#1a0f22" />
+  <meta name="description" content="เกมคำต้องห้ามแบบเดียวกับที่เทพลีลาเล่น เกมปาร์ตี้สายฮา เล่นกับเพื่อน ใครเผลอพูดคำต้องห้ามโดนจับทันที ไม่ต้องล็อกอิน มีจอฉายสำหรับสตรีมด้วย">
+  <meta name="keywords" content="เกมคำต้องห้าม, เกมเทพลีลา, forbidden word game, เกมปาร์ตี้, เกมเล่นกับเพื่อน, เกมพูดห้ามพูด, เกมสายฮา, เกมกลุ่มเพื่อน, party game ภาษาไทย, เกมสตรีมเมอร์, เกมเล่นในวงเหล้า, เกมออนไลน์เล่นกับเพื่อน">
+  <meta property="og:title" content="คำต้องห้าม | เกมปาร์ตี้เล่นกับเพื่อน" />
+  <meta property="og:description" content="สร้างห้องแล้วชวนเพื่อนได้เลย ไม่ต้องล็อกอิน มีจอฉายสำหรับสตรีมด้วย" />
+  <meta property="og:type" content="website" />
   <title>คำต้องห้าม | Forbidden Word</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>🎲 เกมคำต้องห้าม</h1>
-    <p class="sub">ไม่ต้องล็อกอิน ใส่ชื่อแล้วสร้างห้องได้ทันที</p>
+  <main class="container stack-lg">
 
-    <nav class="tabs">
-      <a class="tab" href="#how-to-play">วิธีการเล่น</a>
-      <a class="tab" href="#rules">กติกา</a>
-      <a class="tab" href="#usage">การใช้งานเว็บ</a>
-    </nav>
+    <section class="hero">
+      <p class="kicker">party game · ไม่ต้องล็อกอิน</p>
+      <h1>เกม<mark>คำต้องห้าม</mark></h1>
+      <p class="muted" style="max-width:52ch">
+        ทุกคนได้คำลับติดตัวคนละคำ &mdash; แต่มองไม่เห็นของตัวเอง
+        หน้าที่คุณคือหลอกให้คนอื่นเผลอพูดคำของเขาออกมา ใครได้ยินก่อนกดจับได้เลย
+      </p>
+    </section>
 
     <div class="grid2">
-      <div class="card">
-        <h2>สร้างห้อง</h2>
-        <label>ชื่อของคุณ</label>
-        <input id="createName" placeholder="เช่น อภิญญา รักษี, ขข" maxlength="30" />
-        <button id="btnCreate" class="primary">สร้างห้อง</button>
-        <p id="createMsg" class="hint"></p>
+      <section class="card card-hot">
+        <header>
+          <h2>สร้างห้อง</h2>
+          <p class="faint">คุณจะเป็นโฮสต์ คุมเวลาและจอฉาย</p>
+        </header>
+        <div>
+          <label for="createName">ชื่อของคุณ</label>
+          <input id="createName" placeholder="เช่น ต้น, เจได, พี่หมี" maxlength="24" autocomplete="nickname" />
+        </div>
+        <button id="btnCreate" class="primary block">สร้างห้องเลย</button>
+        <p id="createMsg" class="faint" role="status"></p>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>เข้าห้องเพื่อน</h2>
+          <p class="faint">ใส่รหัส 5 ตัวที่เพื่อนส่งมา</p>
+        </header>
+        <div>
+          <label for="joinCode">รหัสห้อง</label>
+          <input id="joinCode" class="code-input" placeholder="ABCD2" maxlength="5" autocomplete="off" autocapitalize="characters" />
+        </div>
+        <div>
+          <label for="joinName">ชื่อของคุณ</label>
+          <input id="joinName" placeholder="เช่น ต้น, เจได, พี่หมี" maxlength="24" autocomplete="nickname" />
+        </div>
+        <button id="btnJoin" class="volt block">เข้าห้อง</button>
+        <p id="joinMsg" class="faint" role="status"></p>
+      </section>
+    </div>
+
+    <section id="how-to-play" class="card">
+      <header><h2>เล่นยังไง</h2></header>
+      <div class="steps">
+        <div class="step"><div><b>ทุกคนส่งคำของตัวเองเข้าไป</b><br><span class="muted">คำนี้จะถูกสุ่มไปให้คนอื่น ไม่ใช่ของคุณเอง</span></div></div>
+        <div class="step"><div><b>โฮสต์กดเริ่มรอบ</b><br><span class="muted">ทุกคนจะเห็นคำของคนอื่นหมด ยกเว้นของตัวเอง</span></div></div>
+        <div class="step"><div><b>คุยกันให้เป็นธรรมชาติ</b><br><span class="muted">พยายามหลอกให้คนอื่นเผลอพูดคำที่เขาถืออยู่</span></div></div>
+        <div class="step"><div><b>ได้ยินปุ๊บ กดจับปั๊บ</b><br><span class="muted">ใครกดก่อนได้แต้ม คนโดนจับออกจากรอบทันที</span></div></div>
+        <div class="step"><div><b>รอดจนหมดเวลา = ได้แต้มโบนัส</b><br><span class="muted">เหลือคนสุดท้ายเมื่อไหร่ รอบจบทันที</span></div></div>
       </div>
+    </section>
 
-      <div class="card">
-        <h2>เข้าห้อง</h2>
-        <label>รหัสห้อง</label>
-        <input id="joinCode" placeholder="เช่น ABCD2" maxlength="10" />
-        <label>ชื่อของคุณ</label>
-        <input id="joinName" placeholder="เช่น อภิญญา รักษี, ขข" maxlength="30" />
-        <button id="btnJoin" class="primary">เข้าห้อง</button>
-        <p id="joinMsg" class="hint"></p>
-      </div>
+    <div class="grid2">
+      <section id="rules" class="card">
+        <header><h2>กติกา</h2></header>
+        <ul class="info-list">
+          <li>ห้ามบอกคำของคนอื่นตรงๆ ไม่ว่าจะใบ้หรือกระซิบ</li>
+          <li>ห้ามถามว่า &ldquo;คำฉันคืออะไร&rdquo; หรือให้คนอื่นสะกดให้ฟัง</li>
+          <li>จับผิดได้เฉพาะตอนที่เจ้าตัว <b>พูดคำนั้นออกมาจริงๆ</b></li>
+          <li>คนที่ออกจากรอบแล้ว จับผิดคนอื่นต่อไม่ได้ แต่ยังนั่งดูได้</li>
+          <li>ถ้าเถียงกันไม่จบ โฮสต์กดยกเลิกการจับผิดครั้งล่าสุดได้</li>
+        </ul>
+      </section>
+
+      <section id="tips" class="card">
+        <header><h2>เคล็ดลับ</h2></header>
+        <ul class="info-list">
+          <li>ตกลงแนวคำกันก่อน เช่น คำกริยาล้วน หรือ 1 พยางค์ทุกคน จะสนุกกว่า</li>
+          <li>อย่าเลือกคำยากเกิน คำที่ไม่มีใครพูดถึงเลยทำให้เกมนิ่ง</li>
+          <li>โฮสต์เปิด &ldquo;จอฉาย&rdquo; ขึ้นทีวีหรือสตรีมได้ คนดูจะเห็นคำของทุกคน</li>
+          <li>เน็ตหลุดไม่ต้องตกใจ เข้าลิงก์เดิมภายใน 90 วินาที คะแนนอยู่ครบ</li>
+        </ul>
+      </section>
     </div>
 
-    <div id="how-to-play" class="card">
-      <h2>วิธีการเล่น</h2>
-      <ul class="info-list">
-        <li>สร้างห้องหรือเข้าห้องด้วยรหัส แล้วเชิญเพื่อนเข้ามา</li>
-        <li>แต่ละคนใส่คำของตัวเอง จากนั้นโฮสต์กดเริ่มรอบ</li>
-        <li>พยายามทำให้คนอื่นพูดคำต้องห้ามของเขาโดยไม่รู้ตัว</li>
-      </ul>
-    </div>
+    <footer class="faint center">
+      เล่นได้ทั้งบนมือถือและคอม &mdash; แชร์แค่รหัสห้อง 5 ตัวให้เพื่อน
+    </footer>
+  </main>
 
-    <div id="rules" class="card">
-      <h2>กติกา</h2>
-      <ul class="info-list">
-        <li>ห้ามดูคำของตัวเอง และห้ามบอกคำของคนอื่น</li>
-        <li>เมื่อมีคนแพ้ โฮสต์สามารถกดให้แพ้และระบุผู้ชนะได้</li>
-        <li>หมดเวลา/จบเกม จะสรุปผลคำทั้งหมดและอัปเดตคะแนนรวม</li>
-      </ul>
-    </div>
-
-    <div id="usage" class="card">
-      <h2>การใช้งานเว็บ</h2>
-      <ul class="info-list">
-        <li>ใส่ชื่อครั้งเดียวตอนสร้างหรือเข้าห้อง ระบบจะจำให้</li>
-        <li>โฮสต์สามารถหยุดเวลา รีเซ็ต หรือจบเกมได้</li>
-        <li>มีแดชบอร์ดคะแนนต่อรอบและคะแนนรวมให้ติดตาม</li>
-      </ul>
-    </div>
-
-    <div class="footer">
-      <span>เคล็ดลับ: แชร์รหัสห้องให้เพื่อน แล้วเข้าไปที่หน้าเกม</span>
-    </div>
-  </div>
+  <div id="toasts" class="toast-wrap" aria-live="polite"></div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-
-    const $ = (id) => document.getElementById(id);
-
-    function goGame(roomCode) {
-      window.location.href = `/game.html?room=${encodeURIComponent(roomCode)}`;
-    }
-
-    socket.on("room-created", ({ roomCode }) => goGame(roomCode));
-    socket.on("error-msg", ({ message }) => {
-      // โยนไปทั้งสองช่อง
-      $("createMsg").textContent = message;
-      $("joinMsg").textContent = message;
-    });
-
-    $("btnCreate").addEventListener("click", () => {
-      $("createMsg").textContent = "";
-      const name = $("createName").value.trim();
-      if (!name) return $("createMsg").textContent = "กรุณาใส่ชื่อก่อน";
-      sessionStorage.setItem("twg_name", name);
-      socket.emit("create-room", { name });
-    });
-
-    $("btnJoin").addEventListener("click", () => {
-      $("joinMsg").textContent = "";
-      const roomCode = $("joinCode").value.trim().toUpperCase();
-      const name = $("joinName").value.trim();
-      if (!roomCode) return $("joinMsg").textContent = "กรุณาใส่รหัสห้องก่อน";
-      if (!name) return $("joinMsg").textContent = "กรุณาใส่ชื่อด้วย";
-      // เก็บ name ไว้ใน sessionStorage ให้หน้าเกมดึงไปใช้
-      sessionStorage.setItem("twg_name", name);
-      socket.emit("join-room", { roomCode, name });
-      // ถ้า joined สำเร็จ เดี๋ยวหน้าเกมค่อย redirect (กันกรณี error)
-      // แต่เราจะ redirect เลยก็ได้ เพราะ socket same origin — เอาแบบชัวร์ค่อยย้าย
-      setTimeout(() => goGame(roomCode), 150);
-    });
-  </script>
+  <script src="/store.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/lobby.js"></script>
 </body>
 </html>

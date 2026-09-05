@@ -1,76 +1,165 @@
-// server/rooms.js
-const ROOM_CODE_LEN = 5;
+// server/rooms.js — จัดการห้องและผู้เล่น (state ผูกกับ playerId ไม่ใช่ socket.id)
+const crypto = require("crypto");
+const {
+  ROOM_CODE_LEN,
+  CODE_CHARS,
+  MAX_NAME_LEN,
+  ROOM_EMPTY_TTL_MS
+} = require("./config");
 
 function randomRoomCode(existingSet) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ตัด O/0/I/1 กันงง
-  while (true) {
+  for (let attempt = 0; attempt < 5000; attempt++) {
     let code = "";
     for (let i = 0; i < ROOM_CODE_LEN; i++) {
-      code += chars[Math.floor(Math.random() * chars.length)];
+      code += CODE_CHARS[crypto.randomInt(CODE_CHARS.length)];
     }
     if (!existingSet.has(code)) return code;
   }
+  throw new Error("ห้องเต็มระบบชั่วคราว กรุณาลองใหม่อีกครั้ง");
 }
 
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+// คีย์สำหรับหน้าจอฉาย ใครไม่มีคีย์เปิดดูคำของคนอื่นไม่ได้
+function randomSpectatorKey() {
+  return crypto.randomBytes(9).toString("base64url");
 }
 
-/**
- * Assign words so that no user gets their own word.
- * users: Map socketId -> { name, word, assigned }
- */
-function assignWordsNoSelf(usersMap) {
-  const ids = [...usersMap.keys()];
-  if (ids.length < 2) throw new Error("ต้องมีผู้เล่นอย่างน้อย 2 คนก่อนเริ่มรอบ");
+function normalizeCode(raw) {
+  return String(raw || "").trim().toUpperCase().slice(0, ROOM_CODE_LEN);
+}
 
-  const words = ids.map((id) => usersMap.get(id).word);
+// ชื่อซ้ำให้เติมเลขท้าย โดยไม่นับตัวเองตอน reconnect
+function uniqueName(room, raw, exceptPlayerId = null) {
+  const base = String(raw || "").trim().replace(/\s+/g, " ").slice(0, MAX_NAME_LEN);
+  if (!base) return "";
 
-  if (words.some((w) => !w || !String(w).trim())) {
-    throw new Error("ผู้เล่นทุกคนต้องส่งคำก่อนเริ่มรอบ");
+  const taken = new Set();
+  for (const p of room.players.values()) {
+    if (p.id !== exceptPlayerId) taken.add(p.name);
   }
+  if (!taken.has(base)) return base;
 
-  // ถ้ามีแค่ 2 คน แล้วดันส่งคำเหมือนกัน = มันจะเท่ากับได้คำตัวเอง (เพราะคำตัวเอง == คำอีกคน)
-  // ซึ่งเราถือว่า "ห้ามได้คำที่ตัวเองส่ง" -> ต้องตรวจโดยเปรียบเทียบ string
-  // วิธีแก้: ถ้า 2 คน คำเหมือนกัน 100% ก็แก้ไม่ได้ ต้องให้เปลี่ยนคำ
-  if (ids.length === 2) {
-    const a = usersMap.get(ids[0]).word.trim();
-    const b = usersMap.get(ids[1]).word.trim();
-    if (a === b) throw new Error("ผู้เล่น 2 คนที่ส่งคำเหมือนกัน ต้องเปลี่ยนคำใหม่ก่อนเริ่มรอบ");
+  for (let i = 2; i < 100; i++) {
+    const candidate = `${base}${i}`;
+    if (!taken.has(candidate)) return candidate;
   }
+  return `${base}${crypto.randomInt(1000)}`;
+}
 
-  // สุ่มคำให้เป็น permutation ที่ไม่มี fixed point (derangement แบบง่าย)
-  // ทำหลายรอบจนกว่าจะไม่ชนตัวเอง (สำหรับคนไม่เยอะๆ โคตรพอ)
-  const maxTry = 200;
-  for (let attempt = 0; attempt < maxTry; attempt++) {
-    const perm = shuffle([...words]);
-    let ok = true;
+function createPlayer(name) {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    socketId: null,
+    connected: false,
+    disconnectedAt: null,
+    word: null,        // คำที่ตัวเองส่งเข้าไป
+    assigned: null,    // คำที่ได้รับ (ตัวเองมองไม่เห็น)
+    playing: false,    // ร่วมรอบนี้อยู่ไหม
+    out: false,        // โดนจับผิดไปแล้ว
+    outBy: null,
+    score: 0,
+    roundScore: 0
+  };
+}
 
-    for (let i = 0; i < ids.length; i++) {
-      const myWord = String(usersMap.get(ids[i]).word).trim();
-      const gotWord = String(perm[i]).trim();
-      if (myWord === gotWord) {
-        ok = false;
-        break;
-      }
-    }
+function createRoom(rooms) {
+  const code = randomRoomCode(new Set(rooms.keys()));
+  const room = {
+    code,
+    spectatorKey: randomSpectatorKey(),
+    hostId: null,
+    players: new Map(),   // playerId -> player
+    spectators: new Set(), // socketId
+    round: {
+      running: false,
+      paused: false,
+      endsAt: null,
+      remainingMs: null,
+      durationMs: null,
+      number: 0,
+      revealed: false
+    },
+    lastCallout: null,
+    timer: null,
+    emptyTimer: null
+  };
+  rooms.set(code, room);
+  return room;
+}
 
-    if (ok) {
-      for (let i = 0; i < ids.length; i++) {
-        usersMap.get(ids[i]).assigned = perm[i];
-      }
-      return;
-    }
+function attachSocket(room, player, socketId) {
+  player.socketId = socketId;
+  player.connected = true;
+  player.disconnectedAt = null;
+  if (!room.hostId || !room.players.has(room.hostId)) room.hostId = player.id;
+  return player;
+}
+
+function detachSocket(player) {
+  player.socketId = null;
+  player.connected = false;
+  player.disconnectedAt = Date.now();
+}
+
+function findPlayerBySocket(room, socketId) {
+  for (const p of room.players.values()) {
+    if (p.socketId === socketId) return p;
   }
+  return null;
+}
 
-  throw new Error("ไม่สามารถสุ่มคำใหม่ได้ กรุณาเปลี่ยนคำใหม่แล้วเริ่มรอบอีกครั้ง");
+function connectedPlayers(room) {
+  return [...room.players.values()].filter((p) => p.connected);
+}
+
+// ผู้เล่นที่ยังไม่โดนจับผิดในรอบนี้
+function survivors(room) {
+  return [...room.players.values()].filter((p) => p.playing && !p.out);
+}
+
+// โฮสต์ต้องเป็นคนที่ออนไลน์อยู่เสมอ ไม่งั้นห้องค้าง
+function ensureHost(room) {
+  const host = room.players.get(room.hostId);
+  if (host && host.connected) return;
+
+  const next = connectedPlayers(room).sort((a, b) => a.name.localeCompare(b.name))[0];
+  room.hostId = next ? next.id : room.hostId;
+}
+
+function clearRoomCleanup(room) {
+  if (room.emptyTimer) {
+    clearTimeout(room.emptyTimer);
+    room.emptyTimer = null;
+  }
+}
+
+function scheduleRoomCleanup(rooms, code) {
+  const room = rooms.get(code);
+  if (!room) return;
+  clearRoomCleanup(room);
+
+  room.emptyTimer = setTimeout(() => {
+    const latest = rooms.get(code);
+    if (!latest) return;
+    if (connectedPlayers(latest).length > 0) return;
+    if (latest.timer) clearTimeout(latest.timer);
+    rooms.delete(code);
+  }, ROOM_EMPTY_TTL_MS);
 }
 
 module.exports = {
   randomRoomCode,
-  assignWordsNoSelf
+  randomSpectatorKey,
+  normalizeCode,
+  uniqueName,
+  createPlayer,
+  createRoom,
+  attachSocket,
+  detachSocket,
+  findPlayerBySocket,
+  connectedPlayers,
+  survivors,
+  ensureHost,
+  clearRoomCleanup,
+  scheduleRoomCleanup
 };

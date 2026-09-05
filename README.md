@@ -1,57 +1,102 @@
+# คำต้องห้าม (Forbidden Word)
+
+เกมปาร์ตี้แนวเดียวกับที่เล่นในช่องเทพลีลา — ทุกคนถือ "คำต้องห้าม" ติดตัวคนละคำ
+แต่มองไม่เห็นของตัวเอง หน้าที่คุณคือคุยหลอกให้คนอื่นเผลอพูดคำของเขาออกมา
+ใครได้ยินก่อน กดจับได้เลย
+
+เล่นผ่านเว็บ ไม่ต้องล็อกอิน ไม่ต้องติดตั้งอะไร
+
 ---
 
-# Forbidden Word
+## กติกา
 
-A party word game to play with friends.
-Your goal is to trick other players into saying **their own forbidden word**—without them knowing what that word is.
+| เหตุการณ์ | คะแนน |
+|---|---|
+| จับผิดคนอื่นได้ | +1 ต่อครั้ง |
+| รอดจนจบรอบ | +2 |
+| โดนจับ | ออกจากรอบ ไม่ได้แต้ม |
+
+- **ใครก็จับผิดได้** ไม่ใช่แค่โฮสต์ — ได้ยินปุ๊บกดปั๊บ ใครกดก่อนได้แต้ม
+- คนที่ออกจากรอบแล้วจับผิดคนอื่นต่อไม่ได้ แต่ยังนั่งดูได้
+- เหลือคนรอดคนเดียวเมื่อไหร่ รอบจบทันที ไม่ต้องรอหมดเวลา
+- โฮสต์กด **ยกเลิกการจับผิดล่าสุด** ได้ภายใน 20 วินาที เผื่อกดพลาดหรือเถียงกันไม่จบ
+- ระบบการันตีว่า**ไม่มีใครได้คำที่ตัวเองส่ง** และคำของตัวเองจะไม่ถูกส่งมาถึงเบราว์เซอร์ตัวเองเลย
+
+### ข้อจำกัดเรื่องคำซ้ำ
+
+ถ้ามีคนส่งคำเดียวกัน **เกินครึ่งวง** จะแจกไม่ได้จริงๆ (ทุกคนในกลุ่มนั้นต้องไปรับคำจากคนนอกกลุ่ม ซึ่งมีไม่พอ)
+ระบบจะบอกตรงๆ ว่าต้องให้กี่คนเปลี่ยนคำ เช่น *"มีคนส่งคำว่า กิน ถึง 3 คน จาก 5 คน ... ให้เปลี่ยนคำอย่างน้อย 1 คน"*
 
 ---
 
-## Installation & Running Locally
+## ฟีเจอร์
 
-You need **Node.js 18+** (LTS is recommended).
+- **เน็ตหลุดไม่เสียคะแนน** — กลับเข้าลิงก์เดิมภายใน 90 วินาที ได้คะแนน คำ และสถานะเดิมคืนครบ
+  (ผูกตัวตนด้วย `playerId` ใน localStorage ไม่ใช่ socket id จึงรอดทั้งการรีเฟรชและเน็ตกระตุก)
+- **จอฉายสำหรับสตรีม/ทีวี** — หน้าแยกที่โชว์คำของทุกคนตัวโตๆ พร้อมนาฬิกา
+  เข้าได้เฉพาะคนที่มีคีย์ลับที่โฮสต์เท่านั้นเห็น
+- **มือถือเป็นหลัก** — ปุ่มจับผิดอยู่แถบล่าง กดมือเดียวถึง ปุ่มทุกอันสูงอย่างน้อย 44px
+- โฮสต์: ตั้งเวลา 1–15 นาที, พัก/เล่นต่อ, จบรอบ, ล้างคะแนน, เตะผู้เล่น, ยกโฮสต์ให้คนอื่น
+- โฮสต์ที่เน็ตหลุดจะถูกย้ายให้คนที่ยังออนไลน์อัตโนมัติ ห้องไม่ค้าง
+
+---
+
+## รันในเครื่อง
+
+ต้องมี **Node.js 18+**
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open your browser at:
-`http://localhost:3000`
+เปิด `http://localhost:3000`
 
-### Change the Port (Optional)
-
-Set the `PORT` variable before running:
+เปลี่ยนพอร์ต:
 
 ```bash
-set PORT=4000
-npm run dev
+PORT=4000 npm run dev
 ```
 
----
-
-## Self-Hosting / Using the Code
-
-1. Install and run the project using the steps above
-2. Share the link and start creating game rooms instantly
-3. For production use on a server, run:
+### เทสต์
 
 ```bash
-npm start
+npm test
 ```
 
----
-
-## CI/CD (GitHub → Railway)
-
-The workflow automatically deploys when you push to `main` or `master`.
-
-### Requirements before deploying:
-
-1. Create a GitHub Secret named `RAILWAY_TOKEN`
-2. Run `railway link` at the project root to generate `railway.json`
-3. Commit `railway.json` to the repository so CI knows which Railway project to deploy to
+ครอบคลุมอัลกอริทึมแจกคำ (property test หลายพันเคส), การจับผิด, การคิดคะแนน,
+และข้อสำคัญที่สุด — **คำของตัวเองต้องไม่หลุดไปถึง client ของเจ้าตัว**
 
 ---
 
+## โครงสร้าง
 
+```
+server/
+  config.js    ค่าคงที่ทั้งระบบ
+  assign.js    อัลกอริทึมแจกคำ (derangement) + เช็คว่าแจกได้ไหม
+  rooms.js     ห้องและผู้เล่น ผูกด้วย playerId
+  game.js      กติกาของรอบ: แจกคำ จับผิด คิดคะแนน
+  state.js     ประกอบ state รายคน (กันคำตัวเองหลุด)
+  server.js    ต่อสาย socket
+public/
+  index.html   หน้าแรก สร้าง/เข้าห้อง
+  game.html    หน้าเล่นเกม
+  stream.html  จอฉาย
+  store.js     จำตัวตนข้ามการรีเฟรช
+  ui.js        helper ที่ใช้ร่วมกัน
+  style.css    ธีมเวทีรายการวาไรตี้
+```
+
+**หมายเหตุ:** state เก็บใน memory ล้วน ไม่มีฐานข้อมูล — restart หรือ deploy ใหม่ ห้องที่ค้างอยู่จะหาย
+และ scale เกิน 1 instance ไม่ได้ ถ้าต้องการเก็บถาวรหรือขยาย ต้องเพิ่ม Redis หรือ Postgres
+
+---
+
+## Deploy
+
+รันด้วย `npm start` โดยอ่านพอร์ตจาก `process.env.PORT`
+
+มี healthcheck ที่ `GET /healthz` ตอบ `{"ok":true,"rooms":N}`
+
+โปรเจกต์นี้ deploy บน Railway ผ่าน Railway GitHub App

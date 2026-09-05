@@ -1,15 +1,20 @@
 {
-  "name": "thai-word-room-game",
+  "name": "forbidden-word",
   "version": "1.0.0",
   "private": true,
   "main": "server/server.js",
   "type": "commonjs",
   "scripts": {
     "dev": "node server/server.js",
-    "start": "NODE_ENV=production node server/server.js"
+    "start": "node server/server.js",
+    "test": "node --test server/*.test.js"
   },
   "dependencies": {
     "express": "^4.19.2",
     "socket.io": "^4.7.5"
+  },
+  "description": "เกมคำต้องห้าม party game เล่นกับเพื่อนผ่านเว็บ",
+  "engines": {
+    "node": ">=18"
   }
 }

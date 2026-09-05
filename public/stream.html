@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#1a0f22" />
+  <meta name="robots" content="noindex" />
+  <title>จอฉาย | คำต้องห้าม</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="stream-body">
+
+  <header class="stream-head">
+    <div>
+      <h1 class="stream-title display">ห้อง <span id="roomCode">-----</span></h1>
+      <p id="subtitle" class="muted">กำลังเชื่อมต่อ...</p>
+    </div>
+    <div id="timer" class="stream-timer">--:--</div>
+  </header>
+
+  <main id="grid" class="stream-grid"></main>
+
+  <p id="empty" class="empty" hidden>ยังไม่มีใครในห้อง</p>
+
+  <div id="toasts" class="toast-wrap" aria-live="polite"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/stream.js"></script>
+</body>
+</html>

@@ -1,528 +1,424 @@
-// server/server.js
+// server/server.js — ต่อสาย socket เข้ากับกติกาใน game.js
 const path = require("path");
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const { randomRoomCode, assignWordsNoSelf } = require("./rooms");
+
+const cfg = require("./config");
+const R = require("./rooms");
+const G = require("./game");
+const { stateFor } = require("./state");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, { pingTimeout: 20000, pingInterval: 10000 });
 
 const PORT = process.env.PORT || 3000;
-const ROOM_EMPTY_TTL_MS = 2 * 60 * 1000;
-
-// serve static
-app.use(express.static(path.join(__dirname, "..", "public")));
-
-// in-memory rooms
-// rooms: Map roomCode -> room
-// room = { code, hostId, users: Map(socketId -> {name, word, assigned}), round: {running, paused, endsAt, durationMs, remainingMs}, timer, emptyTimer }
 const rooms = new Map();
 
-function scheduleRoomCleanup(roomCode) {
-  const room = rooms.get(roomCode);
-  if (!room || room.users.size > 0) return;
+app.disable("x-powered-by");
 
-  if (room.emptyTimer) clearTimeout(room.emptyTimer);
-  room.emptyTimer = setTimeout(() => {
-    const latest = rooms.get(roomCode);
-    if (!latest || latest.users.size > 0) return;
-    rooms.delete(roomCode);
-  }, ROOM_EMPTY_TTL_MS);
-}
-
-function clearRoomCleanup(room) {
-  if (room.emptyTimer) {
-    clearTimeout(room.emptyTimer);
-    room.emptyTimer = null;
+// HTML ต้องไม่ถูกแคช ไม่งั้น deploy ใหม่แล้วคนยังได้หน้าเก่าค้างอยู่เป็นชั่วโมง
+// ส่วน css/js แคชได้ แต่ต้อง revalidate ทุกครั้ง กันโหลดโค้ดเก่ามาชนกัน
+app.use(express.static(path.join(__dirname, "..", "public"), {
+  etag: true,
+  setHeaders(res, filePath) {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader(
+      "Cache-Control",
+      filePath.endsWith(".html") ? "no-store" : "no-cache"
+    );
   }
+}));
+app.get("/healthz", (_req, res) => res.json({ ok: true, rooms: rooms.size }));
+
+// ---------- helpers ----------
+
+function fail(socket, message) {
+  socket.emit("error-msg", { message });
 }
 
-function roomPublicState(room) {
-  const users = [...room.users.entries()].map(([id, u]) => ({
-    id,
-    name: u.name,
-    hasWord: !!(u.word && String(u.word).trim()),
-    score: u.score || 0,
-    roundScore: u.roundScore || 0,
-    roundLost: !!u.roundLost,
-    lostBy: u.lostBy || null
-  }));
-
-  return {
-    code: room.code,
-    hostId: room.hostId,
-    users,
-    round: room.round
-  };
-}
-
-function buildResults(room) {
-  return [...room.users.values()].map((u) => ({
-    name: u.name,
-    word: u.assigned || "-"
-  }));
-}
-
-function resetRoundState(room, { updateScores = false, resetScores = false } = {}) {
-  for (const u of room.users.values()) {
-    const winPoints = Number(u.roundScore || 0);
-    if (updateScores && room.round.running) {
-      if (!u.roundLost) {
-        u.score = (u.score || 0) + 1 + winPoints;
-      }
-    }
-    if (resetScores) {
-      u.score = 0;
-    }
-    u.roundScore = 0;
-    u.roundLost = false;
-    u.lostBy = null;
-    u.word = null;
-    u.assigned = null;
-  }
-}
-
-function endRound(roomCode, reason, { revealAll = false, updateScores = false, resetScores = false } = {}) {
-  const room = rooms.get(roomCode);
+// ส่ง state แยกรายคน เพราะแต่ละคนเห็นคำไม่เหมือนกัน
+function pushState(code) {
+  const room = rooms.get(code);
   if (!room) return;
 
-  if (room.timer) {
-    clearTimeout(room.timer);
-    room.timer = null;
+  for (const p of room.players.values()) {
+    if (p.socketId) io.to(p.socketId).emit("state", stateFor(room, p.id));
   }
-
-  if (revealAll && room.round.running) {
-    io.to(roomCode).emit("results-reveal", { results: buildResults(room) });
+  for (const sid of room.spectators) {
+    io.to(sid).emit("state", stateFor(room, null));
   }
-
-  resetRoundState(room, { updateScores, resetScores });
-
-  room.round.running = false;
-  room.round.paused = false;
-  room.round.endsAt = null;
-  room.round.remainingMs = null;
-
-  io.to(roomCode).emit("round-ended", { reason });
-  broadcastRoomState(roomCode);
 }
 
-function broadcastRoomState(roomCode) {
-  const room = rooms.get(roomCode);
+function announce(code, event, payload) {
+  if (!rooms.has(code)) return;
+  io.to(code).emit(event, payload);
+}
+
+function endRound(code, reason, { commit = true } = {}) {
+  const room = rooms.get(code);
+  if (!room || !room.round.running) return;
+
+  const results = G.finishRound(room, { commit });
+  announce(code, "round-ended", { reason, results, roundNumber: room.round.number });
+  pushState(code);
+}
+
+function armTimer(code, ms) {
+  const room = rooms.get(code);
   if (!room) return;
-  io.to(roomCode).emit("room-state", roomPublicState(room));
+  if (room.timer) clearTimeout(room.timer);
+  room.timer = setTimeout(() => endRound(code, "timeup"), ms);
 }
 
-
-function pauseRound(roomCode) {
-  const room = rooms.get(roomCode);
-  if (!room || room.round.paused) return;
-
-  if (room.timer) {
-    clearTimeout(room.timer);
-    room.timer = null;
-  }
-
-  const remaining = room.round.endsAt
-    ? Math.max(0, room.round.endsAt - Date.now())
-    : Math.max(0, room.round.remainingMs || 0);
-
-  room.round.paused = true;
-  room.round.remainingMs = remaining;
-  room.round.endsAt = null;
-
-  io.to(roomCode).emit("round-paused", { remainingMs: remaining });
-  broadcastRoomState(roomCode);
-}
-
-function resumeRound(roomCode) {
-  const room = rooms.get(roomCode);
-  if (!room || !room.round.paused) return;
-
-  const remaining = Math.max(0, room.round.remainingMs || 0);
-  if (remaining <= 0) {
-    endRound(roomCode, "timeup", { revealAll: true, updateScores: true });
-    return;
-  }
-
-  room.round.paused = false;
-  room.round.endsAt = Date.now() + remaining;
-
-  io.to(roomCode).emit("round-resumed", { endsAt: room.round.endsAt, remainingMs: remaining });
-
-  room.timer = setTimeout(() => {
-    endRound(roomCode, "timeup", { revealAll: true, updateScores: true });
-  }, remaining);
-
-  broadcastRoomState(roomCode);
-}
-
-function sendPersonalResults(roomCode) {
-  const room = rooms.get(roomCode);
+function autoEndIfDone(code) {
+  const room = rooms.get(code);
   if (!room) return;
-
-  // สำหรับ user แต่ละคน: ส่งรายการ "คนอื่น" พร้อม assigned word ของคนอื่น
-  for (const [viewerId] of room.users.entries()) {
-    const others = [];
-    for (const [id, u] of room.users.entries()) {
-      if (id === viewerId) continue;
-      // คนอื่นจะเห็นคำ assigned ของเรา (ที่เราได้รับจากสุ่ม)
-      // แต่เราเองจะไม่เห็นของตัวเอง เพราะถูก filter ออกไปแล้ว
-      others.push({
-        name: u.name,
-        word: u.assigned
-      });
-    }
-
-    io.to(viewerId).emit("result", { others });
-  }
+  if (G.shouldAutoEnd(room)) endRound(code, "last-standing");
 }
+
+// หา room+player จาก socket ปัจจุบัน แล้วเช็คสิทธิ์ให้ครบในที่เดียว
+function contextOf(socket, roomCode, { hostOnly = false } = {}) {
+  const code = R.normalizeCode(roomCode);
+  const room = rooms.get(code);
+  if (!room) return { error: "ไม่พบห้องนี้ อาจถูกปิดไปแล้ว" };
+
+  const player = R.findPlayerBySocket(room, socket.id);
+  if (!player) return { error: "คุณไม่ได้อยู่ในห้องนี้" };
+
+  if (hostOnly && room.hostId !== player.id) {
+    return { error: "เฉพาะโฮสต์เท่านั้นที่ทำรายการนี้ได้" };
+  }
+  return { code, room, player };
+}
+
+// ---------- socket ----------
 
 io.on("connection", (socket) => {
-  // ---- CREATE ROOM ----
   socket.on("create-room", ({ name }) => {
-    const trimmed = String(name || "").trim().slice(0, 30);
-    if (!trimmed) {
-      socket.emit("error-msg", { message: "Name is required." });
-      return;
+    const raw = String(name || "").trim();
+    if (!raw) return fail(socket, "กรุณาใส่ชื่อก่อน");
+
+    let room;
+    try {
+      room = R.createRoom(rooms);
+    } catch (e) {
+      return fail(socket, e.message);
     }
 
-    const code = randomRoomCode(new Set(rooms.keys()));
-    const room = {
-      code,
-      hostId: socket.id,
-      users: new Map(),
-      round: { running: false, paused: false, endsAt: null, durationMs: 60000, remainingMs: null },
-      timer: null,
-      emptyTimer: null
-    };
+    const player = R.createPlayer(R.uniqueName(room, raw));
+    room.players.set(player.id, player);
+    room.hostId = player.id;
+    R.attachSocket(room, player, socket.id);
+    socket.join(room.code);
 
-    room.users.set(socket.id, {
-      name: trimmed,
-      word: null,
-      assigned: null,
-      score: 0,
-      roundScore: 0,
-      roundLost: false,
-      lostBy: null
+    socket.emit("room-created", {
+      roomCode: room.code,
+      playerId: player.id,
+      spectatorKey: room.spectatorKey
     });
-    rooms.set(code, room);
-
-    socket.join(code);
-    socket.emit("room-created", { roomCode: code });
-    broadcastRoomState(code);
+    pushState(room.code);
   });
 
-  // ---- JOIN ROOM ----
-  socket.on("join-room", ({ roomCode, name }) => {
-    const code = String(roomCode || "").trim().toUpperCase();
-    const trimmed = String(name || "").trim().slice(0, 30);
-
-    if (!code || !trimmed) {
-      socket.emit("error-msg", { message: "Room code and name are required." });
-      return;
-    }
-
+  /**
+   * เข้าห้อง หรือกลับเข้าห้องเดิม
+   * ถ้าส่ง playerId ที่เคยได้มาและยังอยู่ในห้อง = ได้คะแนน/สถานะเดิมคืนทั้งหมด
+   */
+  socket.on("join-room", ({ roomCode, name, playerId }) => {
+    const code = R.normalizeCode(roomCode);
     const room = rooms.get(code);
-    if (!room) {
-      socket.emit("error-msg", { message: "Room not found." });
+    if (!room) return fail(socket, "ไม่พบห้องนี้ ตรวจรหัสห้องอีกครั้ง");
+
+    R.clearRoomCleanup(room);
+
+    const existing = playerId ? room.players.get(String(playerId)) : null;
+
+    if (existing) {
+      // เครื่องเดิมต้องถูกไล่ออกให้ชัดเจน ไม่ใช่ค้างอยู่กับกระดานเก่าที่ไม่อัปเดตแล้ว
+      if (existing.connected && existing.socketId !== socket.id) {
+        const old = io.sockets.sockets.get(existing.socketId);
+        if (old) {
+          old.emit("session-taken");
+          old.leave(code);
+        }
+      }
+      const wanted = String(name || "").trim();
+      if (wanted && wanted !== existing.name) {
+        existing.name = R.uniqueName(room, wanted, existing.id);
+      }
+      R.attachSocket(room, existing, socket.id);
+      socket.join(code);
+      R.ensureHost(room);
+
+      socket.emit("joined", {
+        roomCode: code,
+        playerId: existing.id,
+        reconnected: true,
+        spectatorKey: room.hostId === existing.id ? room.spectatorKey : null
+      });
+      pushState(code);
       return;
     }
 
-    clearRoomCleanup(room);
-
-    // กันชื่อซ้ำแบบง่ายๆ: ถ้าซ้ำให้เติมท้าย
-    let finalName = trimmed;
-    const existingNames = new Set([...room.users.values()].map((u) => u.name));
-    if (existingNames.has(finalName)) {
-      let i = 2;
-      while (existingNames.has(`${finalName}${i}`)) i++;
-      finalName = `${finalName}${i}`;
+    if (room.players.size >= cfg.MAX_PLAYERS) {
+      return fail(socket, `ห้องเต็มแล้ว (สูงสุด ${cfg.MAX_PLAYERS} คน)`);
     }
 
-    room.users.set(socket.id, {
-      name: finalName,
-      word: null,
-      assigned: null,
-      score: 0,
-      roundScore: 0,
-      roundLost: false,
-      lostBy: null
-    });
-    if (!room.users.has(room.hostId)) {
-      room.hostId = socket.id;
-    }
+    const finalName = R.uniqueName(room, name);
+    if (!finalName) return fail(socket, "กรุณาใส่ชื่อก่อน");
+
+    const player = R.createPlayer(finalName);
+    room.players.set(player.id, player);
+    R.attachSocket(room, player, socket.id);
     socket.join(code);
+    R.ensureHost(room);
 
-    socket.emit("joined", { roomCode: code, yourId: socket.id });
-    broadcastRoomState(code);
+    socket.emit("joined", {
+      roomCode: code,
+      playerId: player.id,
+      reconnected: false,
+      spectatorKey: room.hostId === player.id ? room.spectatorKey : null
+    });
+    pushState(code);
   });
 
-  // ---- SUBMIT WORD ----
+  // จอฉาย/สตรีม เห็นคำของทุกคน จึงต้องมีคีย์
+  socket.on("watch-room", ({ roomCode, key }) => {
+    const code = R.normalizeCode(roomCode);
+    const room = rooms.get(code);
+    if (!room) return fail(socket, "ไม่พบห้องนี้");
+    if (String(key || "") !== room.spectatorKey) {
+      return fail(socket, "ลิงก์จอฉายไม่ถูกต้อง ขอลิงก์ใหม่จากโฮสต์");
+    }
+
+    R.clearRoomCleanup(room);
+    room.spectators.add(socket.id);
+    socket.join(code);
+    socket.emit("watching", { roomCode: code });
+    socket.emit("state", stateFor(room, null));
+  });
+
   socket.on("submit-word", ({ roomCode, word }) => {
-    const code = String(roomCode || "").trim().toUpperCase();
-    const room = rooms.get(code);
-    if (!room) return;
+    const ctx = contextOf(socket, roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room, player } = ctx;
 
-    const user = room.users.get(socket.id);
-    if (!user) return;
+    if (room.round.running) return fail(socket, "รอบกำลังเล่นอยู่ รอรอบหน้านะ");
 
-    if (room.round.running) {
-      socket.emit("error-msg", { message: "Round already started. Wait for next round." });
-      return;
+    const w = String(word || "").trim().replace(/\s+/g, " ");
+    if (!w) return fail(socket, "ยังไม่ได้พิมพ์คำ");
+    if (w.length > cfg.MAX_WORD_LEN) {
+      return fail(socket, `คำยาวเกินไป (ไม่เกิน ${cfg.MAX_WORD_LEN} ตัวอักษร)`);
     }
 
-    const w = String(word || "").trim();
-    if (!w) {
-      socket.emit("error-msg", { message: "Word cannot be empty." });
-      return;
-    }
-    if (w.length > 40) {
-      socket.emit("error-msg", { message: "Word too long (max 40 chars)." });
-      return;
-    }
-
-    user.word = w;
-    broadcastRoomState(code);
+    player.word = w;
+    socket.emit("word-accepted", { word: w });
+    pushState(code);
   });
 
-  // ---- START ROUND (HOST) ----
   socket.on("start-round", ({ roomCode, durationMs }) => {
-    const code = String(roomCode || "").trim().toUpperCase();
-    const room = rooms.get(code);
-    if (!room) return;
+    const ctx = contextOf(socket, roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room } = ctx;
 
-    if (socket.id !== room.hostId) {
-      socket.emit("error-msg", { message: "Only host can start the round." });
-      return;
-    }
-    if (room.round.running) {
-      socket.emit("error-msg", { message: "Round already running." });
-      return;
-    }
+    if (room.round.running) return fail(socket, "รอบนี้กำลังเล่นอยู่แล้ว");
 
-    const ids = [...room.users.keys()];
-    if (ids.length < 2) {
-      socket.emit("error-msg", { message: "Need at least 2 players." });
-      return;
-    }
-
-    const dur = Number(durationMs);
-    const finalDuration = Number.isFinite(dur) ? Math.max(10_000, Math.min(dur, 300_000)) : room.round.durationMs;
-    room.round.durationMs = finalDuration;
+    const raw = Number(durationMs);
+    const dur = Number.isFinite(raw)
+      ? Math.max(cfg.ROUND_MIN_MS, Math.min(raw, cfg.ROUND_MAX_MS))
+      : cfg.ROUND_DEFAULT_MS;
 
     try {
-      for (const u of room.users.values()) {
-        u.roundScore = 0;
-        u.roundLost = false;
-        u.lostBy = null;
-      }
-      assignWordsNoSelf(room.users);
+      G.startRound(room, dur);
     } catch (e) {
-      socket.emit("error-msg", { message: e.message || "Cannot start round." });
-      return;
+      return fail(socket, e.message);
     }
 
-    room.round.running = true;
-    room.round.paused = false;
-    room.round.endsAt = Date.now() + finalDuration;
-    room.round.remainingMs = finalDuration;
-
-    // ส่งผลแบบ personal: แต่ละคนเห็นของคนอื่น ยกเว้นตัวเอง
-    sendPersonalResults(code);
-
-    // Broadcast timer start
-    io.to(code).emit("round-started", {
+    armTimer(code, dur);
+    announce(code, "round-started", {
       endsAt: room.round.endsAt,
-      durationMs: finalDuration
+      durationMs: dur,
+      number: room.round.number
     });
-
-    // set timer
-    room.timer = setTimeout(() => {
-      endRound(code, "timeup", { revealAll: true, updateScores: true });
-    }, finalDuration);
-
-    broadcastRoomState(code);
+    pushState(code);
   });
 
-  // ---- END GAME (HOST) ----
-  socket.on("end-game", ({ roomCode }) => {
-    const code = String(roomCode || "").trim().toUpperCase();
-    const room = rooms.get(code);
-    if (!room) return;
+  // ใครก็ได้ที่ยังอยู่ในรอบ กดจับผิดคนที่เผลอพูดคำตัวเองได้
+  socket.on("call-out", ({ roomCode, targetId }) => {
+    const ctx = contextOf(socket, roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room, player } = ctx;
 
-    if (socket.id !== room.hostId) {
-      socket.emit("error-msg", { message: "Only host can end the game." });
-      return;
-    }
-    if (!room.round.running) {
-      socket.emit("error-msg", { message: "Round not running." });
-      return;
+    let event;
+    try {
+      event = G.callOut(room, player.id, String(targetId || ""));
+    } catch (e) {
+      return fail(socket, e.message);
     }
 
-    endRound(code, "endgame", { revealAll: true, updateScores: true });
+    announce(code, "called-out", {
+      callerName: event.callerName,
+      targetName: event.targetName,
+      word: event.word
+    });
+    pushState(code);
+    autoEndIfDone(code);
   });
 
-  // ---- PAUSE/RESUME (HOST) ----
+  socket.on("undo-callout", ({ roomCode }) => {
+    const ctx = contextOf(socket, roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room } = ctx;
+
+    let last;
+    try {
+      last = G.undoCallout(room);
+    } catch (e) {
+      return fail(socket, e.message);
+    }
+
+    announce(code, "callout-undone", { targetName: last.targetName });
+    pushState(code);
+  });
+
   socket.on("toggle-pause", ({ roomCode }) => {
-    const code = String(roomCode || "").trim().toUpperCase();
-    const room = rooms.get(code);
-    if (!room) return;
-
-    if (socket.id !== room.hostId) {
-      socket.emit("error-msg", { message: "Only host can pause/resume." });
-      return;
-    }
-    if (!room.round.running) {
-      socket.emit("error-msg", { message: "Round not running." });
-      return;
-    }
+    const ctx = contextOf(socket, roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room } = ctx;
+    if (!room.round.running) return fail(socket, "ยังไม่ได้เริ่มรอบ");
 
     if (room.round.paused) {
-      resumeRound(code);
+      const left = Math.max(0, room.round.remainingMs || 0);
+      if (left <= 0) return endRound(code, "timeup");
+      room.round.paused = false;
+      room.round.endsAt = Date.now() + left;
+      armTimer(code, left);
+      announce(code, "round-resumed", { endsAt: room.round.endsAt });
     } else {
-      pauseRound(code);
+      if (room.timer) {
+        clearTimeout(room.timer);
+        room.timer = null;
+      }
+      room.round.remainingMs = Math.max(0, (room.round.endsAt || Date.now()) - Date.now());
+      room.round.paused = true;
+      room.round.endsAt = null;
+      announce(code, "round-paused", { remainingMs: room.round.remainingMs });
     }
+    pushState(code);
   });
 
-  // ---- RESET (HOST) ----
-  socket.on("reset-round", ({ roomCode }) => {
-    const code = String(roomCode || "").trim().toUpperCase();
-    const room = rooms.get(code);
-    if (!room) return;
-
-    if (socket.id !== room.hostId) {
-      socket.emit("error-msg", { message: "Only host can reset." });
-      return;
-    }
-
-    endRound(code, "reset", { resetScores: true });
+  socket.on("end-round", ({ roomCode }) => {
+    const ctx = contextOf(socket, roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.round.running) return fail(socket, "ยังไม่ได้เริ่มรอบ");
+    endRound(ctx.code, "host");
   });
 
-  // ---- MARK LOSS (HOST) ----
-  socket.on("mark-loss", ({ roomCode, loserId, winnerId }) => {
-    const code = String(roomCode || "").trim().toUpperCase();
-    const room = rooms.get(code);
-    if (!room) return;
+  socket.on("reset-scores", ({ roomCode }) => {
+    const ctx = contextOf(socket, roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room } = ctx;
 
-    if (socket.id !== room.hostId) {
-      socket.emit("error-msg", { message: "Only host can mark loss." });
-      return;
+    if (room.timer) {
+      clearTimeout(room.timer);
+      room.timer = null;
     }
-    if (!room.round.running) {
-      socket.emit("error-msg", { message: "Round not running." });
-      return;
-    }
-    if (!room.users.has(loserId) || !room.users.has(winnerId)) return;
-    if (loserId === winnerId) {
-      socket.emit("error-msg", { message: "Winner and loser must be different." });
-      return;
-    }
+    room.round.running = false;
+    room.round.paused = false;
+    room.round.endsAt = null;
+    G.resetScores(room);
 
-    const loser = room.users.get(loserId);
-    if (loser.roundLost) return;
-    loser.roundLost = true;
-    loser.lostBy = winnerId;
-
-    const winner = room.users.get(winnerId);
-    winner.roundScore = (winner.roundScore || 0) + 1;
-
-    broadcastRoomState(code);
+    announce(code, "scores-reset", {});
+    pushState(code);
   });
 
-  // ---- KICK PLAYER (HOST) ----
   socket.on("kick-player", ({ roomCode, targetId }) => {
-    const code = String(roomCode || "").trim().toUpperCase();
-    const room = rooms.get(code);
-    if (!room) return;
+    const ctx = contextOf(socket, roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room, player } = ctx;
 
-    if (socket.id !== room.hostId) {
-      socket.emit("error-msg", { message: "Only host can kick players." });
-      return;
+    const target = room.players.get(String(targetId || ""));
+    if (!target) return;
+    if (target.id === player.id) return fail(socket, "เตะตัวเองไม่ได้");
+
+    if (target.socketId) {
+      const s = io.sockets.sockets.get(target.socketId);
+      if (s) {
+        s.emit("kicked");
+        s.leave(code);
+      }
     }
-    if (!room.users.has(targetId)) return;
-    if (targetId === room.hostId) {
-      socket.emit("error-msg", { message: "Host cannot be kicked." });
-      return;
-    }
+    room.players.delete(target.id);
 
-    room.users.delete(targetId);
-
-    const targetSocket = io.sockets.sockets.get(targetId);
-    if (targetSocket) {
-      targetSocket.leave(code);
-      targetSocket.emit("kicked");
-    }
-
-    if (room.users.size === 0) {
-      if (room.timer) clearTimeout(room.timer);
-      scheduleRoomCleanup(code);
-      return;
-    }
-
-    if (room.round.running) {
-      endRound(code, "player_left");
-      return;
-    }
-
-    broadcastRoomState(code);
+    R.ensureHost(room);
+    pushState(code);
+    autoEndIfDone(code);
   });
 
-  // ---- LEAVE ROOM ----
+  socket.on("transfer-host", ({ roomCode, targetId }) => {
+    const ctx = contextOf(socket, roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const { code, room } = ctx;
+
+    const target = room.players.get(String(targetId || ""));
+    if (!target || !target.connected) return fail(socket, "ผู้เล่นคนนี้ไม่ได้ออนไลน์");
+    room.hostId = target.id;
+
+    if (target.socketId) {
+      io.to(target.socketId).emit("host-granted", { spectatorKey: room.spectatorKey });
+    }
+    pushState(code);
+  });
+
   socket.on("leave-room", ({ roomCode }) => {
-    const code = String(roomCode || "").trim().toUpperCase();
-    const room = rooms.get(code);
-    if (!room) return;
+    const ctx = contextOf(socket, roomCode);
+    if (ctx.error) return;
+    const { code, room, player } = ctx;
 
-    room.users.delete(socket.id);
+    room.players.delete(player.id);
     socket.leave(code);
+    R.ensureHost(room);
 
-    // ถ้าห้องว่าง -> ลบทิ้ง
-    if (room.users.size === 0) {
-      if (room.timer) clearTimeout(room.timer);
-      scheduleRoomCleanup(code);
+    if (R.connectedPlayers(room).length === 0) {
+      R.scheduleRoomCleanup(rooms, code);
       return;
     }
-
-    // ถ้า host ออก -> ย้าย host ให้คนแรก
-    if (room.hostId === socket.id) {
-      room.hostId = [...room.users.keys()][0];
-    }
-
-    // ถ้ากำลังเล่นอยู่ แล้วคนออก -> ให้จบรอบเลย (กันความปวดหัว)
-    if (room.round.running) {
-      endRound(code, "player_left");
-      return;
-    }
-
-    broadcastRoomState(code);
+    pushState(code);
+    autoEndIfDone(code);
   });
 
-  // ---- DISCONNECT ----
+  /**
+   * เน็ตหลุด: ไม่ลบผู้เล่นทันที และไม่ล้มรอบทิ้ง
+   * เก็บที่นั่งไว้ตาม RECONNECT_GRACE_MS ให้กลับมาต่อได้พร้อมคะแนนเดิม
+   */
   socket.on("disconnect", () => {
-    // ไล่หา room ที่มี socket นี้อยู่
     for (const [code, room] of rooms.entries()) {
-      if (!room.users.has(socket.id)) continue;
+      if (room.spectators.delete(socket.id)) continue;
 
-      room.users.delete(socket.id);
-      socket.leave(code);
+      const player = R.findPlayerBySocket(room, socket.id);
+      if (!player) continue;
 
-      if (room.users.size === 0) {
-        if (room.timer) clearTimeout(room.timer);
-        scheduleRoomCleanup(code);
-        continue;
-      }
+      R.detachSocket(player);
+      R.ensureHost(room);
+      pushState(code);
 
-      if (room.hostId === socket.id) {
-        room.hostId = [...room.users.keys()][0];
-      }
+      setTimeout(() => {
+        const latest = rooms.get(code);
+        if (!latest) return;
+        const p = latest.players.get(player.id);
+        if (!p || p.connected) return;
 
-      if (room.round.running) {
-        endRound(code, "player_left");
-      } else {
-        broadcastRoomState(code);
-      }
+        latest.players.delete(p.id);
+        R.ensureHost(latest);
+
+        if (R.connectedPlayers(latest).length === 0) {
+          R.scheduleRoomCleanup(rooms, code);
+          return;
+        }
+        pushState(code);
+        autoEndIfDone(code);
+      }, cfg.RECONNECT_GRACE_MS);
     }
   });
 });
