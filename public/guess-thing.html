@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#1a0f22" />
+  <meta name="description" content="เกมทายของ 20 คำถาม ถามใช่ไม่ใช่แล้วเดาว่าอีกฝ่ายคิดถึงอะไร มีชุดคำสัตว์และสิ่งของให้เลือก มีคำถามแนะนำ เล่นกับเพื่อนบนเครื่องเดียว">
+  <meta name="keywords" content="เกมทายของ, 20 คำถาม, เกมทายสัตว์, twenty questions, เกมปาร์ตี้, เกมเล่นกับเพื่อน">
+  <title>ทายของ 20 คำถาม | Guess It</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <main id="screenSetup" class="container stack-lg">
+    <section class="hero">
+      <p class="kicker">2 คน · เครื่องเดียว</p>
+      <h1>ทายของ <mark>20 คำถาม</mark></h1>
+      <p class="muted" style="max-width:54ch">
+        ต่างคนต่างคิดสิ่งของหรือสิ่งมีชีวิตไว้ให้อีกฝ่ายทาย
+        ผลัดกันถามคำถามที่ตอบได้แค่ใช่หรือไม่ใช่ ทายชื่อได้แค่ 3 ครั้ง ใครทายถูกก่อนชนะ
+      </p>
+    </section>
+
+    <section class="card card-hot">
+      <header><h2>ใครเล่นบ้าง</h2></header>
+      <div class="grid2">
+        <div>
+          <label for="nameA">ผู้เล่น 1</label>
+          <input id="nameA" maxlength="20" placeholder="เช่น ต้น" autocomplete="off" />
+        </div>
+        <div>
+          <label for="nameB">ผู้เล่น 2</label>
+          <input id="nameB" maxlength="20" placeholder="เช่น เจได" autocomplete="off" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header>
+        <h2>จะเอาคำมาจากไหน</h2>
+        <p class="faint">คิดเองก็ได้ หรือให้เว็บสุ่มให้</p>
+      </header>
+      <div class="choice-grid">
+        <button class="choice" data-source="free" aria-pressed="true">
+          <b>คิดเอง</b><span class="faint">พิมพ์อะไรก็ได้ที่มีอยู่บนโลก</span>
+        </button>
+        <button class="choice" data-source="pack" aria-pressed="false">
+          <b>ให้เว็บสุ่มให้</b><span class="faint">เลือกหมวดแล้วกดสุ่ม</span>
+        </button>
+      </div>
+
+      <div id="packPicker" hidden>
+        <label for="packSelect">หมวด</label>
+        <select id="packSelect"></select>
+
+        <label style="margin-top:0.6rem">ระดับความรู้จัก</label>
+        <div class="choice-grid">
+          <button class="choice" data-level="common" aria-pressed="true">
+            <b>รู้จักกันทั่วไป</b><span class="faint">ทุกคนน่าจะรู้จัก เล่นง่าย</span>
+          </button>
+          <button class="choice" data-level="rare" aria-pressed="false">
+            <b>รู้จักน้อย</b><span class="faint">ยากขึ้น ต้องมั่นใจว่าทั้งวงรู้จัก</span>
+          </button>
+        </div>
+      </div>
+
+      <button id="btnStart" class="primary block">เริ่มเล่น</button>
+    </section>
+
+    <section class="card">
+      <header><h2>กติกา</h2></header>
+      <ul class="info-list">
+        <li>แต่ละตาเลือกได้ว่าจะ <b>ถาม</b> หรือจะ <b>ทาย</b></li>
+        <li>ถามได้ไม่จำกัด แต่ <b>ทายชื่อได้แค่ 3 ครั้ง</b></li>
+        <li>อีกฝ่ายมีหน้าที่กด <b>ใช่</b> หรือ <b>ไม่ใช่</b> เท่านั้น</li>
+        <li>ทั้งฝั่งถามและฝั่งตอบมีเวลา <b>คนละ 1 นาที</b> หมดเวลาถือว่าฟาวล์และเสียตา</li>
+        <li>ทายหมดสิทธิ์ทั้งคู่โดยไม่มีใครถูก ถือว่า <b>เสมอ</b></li>
+      </ul>
+      <a class="btn ghost" href="/">กลับหน้าเลือกเกม</a>
+    </section>
+  </main>
+
+  <!-- ส่งเครื่อง -->
+  <div id="screenPass" class="pass-screen" hidden>
+    <div class="pass-inner">
+      <p class="muted">ส่งเครื่องให้</p>
+      <h1 id="passName" class="pass-name">-</h1>
+      <p id="passWhy" class="muted center"></p>
+      <button id="btnPassReady" class="volt block">พร้อมแล้ว</button>
+    </div>
+  </div>
+
+  <main id="screenPlay" class="container stack-lg" hidden>
+    <header class="topbar" style="border-radius:var(--r-lg);margin-bottom:var(--gap)">
+      <div class="grow">
+        <div class="room-tag" id="playTitle">-</div>
+        <div class="faint" id="playSubtitle">-</div>
+      </div>
+      <div id="clock" class="timer idle">--</div>
+    </header>
+
+    <!-- ตั้งคำ -->
+    <section id="pickCard" class="card card-hot" hidden>
+      <header>
+        <h2>ตั้งคำให้ <span id="pickFor">-</span> ทาย</h2>
+        <p class="faint">อย่าให้อีกฝ่ายเห็นจอ</p>
+      </header>
+      <div>
+        <label for="secretInput">สิ่งของ / สิ่งมีชีวิต</label>
+        <input id="secretInput" maxlength="40" placeholder="เช่น ช้าง, ตู้เย็น" autocomplete="off" />
+      </div>
+      <button id="btnRandom" class="ghost block" hidden>สุ่มให้หน่อย</button>
+      <button id="btnSetSecret" class="primary block">ยืนยัน</button>
+      <p id="pickMsg" class="faint" role="status"></p>
+    </section>
+
+    <!-- ตาเล่น -->
+    <section id="turnCard" class="card" hidden>
+      <header>
+        <h2>ตาของ <span id="turnWho">-</span></h2>
+        <p class="faint" id="turnHint">-</p>
+      </header>
+
+      <div class="choice-grid">
+        <button class="choice" data-mode="ask" aria-pressed="true">
+          <b>ถามคำถาม</b><span class="faint">ถามได้ไม่จำกัด</span>
+        </button>
+        <button class="choice" data-mode="guess" aria-pressed="false">
+          <b>ทายชื่อเลย</b><span class="faint">เหลือ <span id="guessLeft">3</span> ครั้ง</span>
+        </button>
+      </div>
+
+      <div>
+        <label for="turnInput" id="turnLabel">คำถาม</label>
+        <input id="turnInput" maxlength="80" autocomplete="off" />
+      </div>
+      <div id="hintRow" class="row"></div>
+      <button id="btnSend" class="primary block">ส่ง</button>
+      <p id="turnMsg" class="faint" role="status"></p>
+    </section>
+
+    <!-- ฝั่งตอบ -->
+    <section id="answerCard" class="card card-hot" hidden>
+      <header>
+        <h2 id="answerTitle">-</h2>
+        <p class="faint" id="answerSub">-</p>
+      </header>
+      <div class="pending-box" id="pendingText">-</div>
+      <div class="row">
+        <button id="btnYes" class="volt grow">ใช่ / ถูกต้อง</button>
+        <button id="btnNo" class="danger grow">ไม่ใช่ / ไม่ถูก</button>
+      </div>
+    </section>
+
+    <!-- ประวัติ -->
+    <section class="card">
+      <header><h2>สิ่งที่รู้แล้ว</h2></header>
+      <div id="history" class="stack" style="gap:0.8rem"></div>
+    </section>
+
+    <!-- ผล -->
+    <section id="resultCard" class="card reveal-card" hidden>
+      <header><h2 id="resultTitle">จบเกม</h2></header>
+      <div id="resultReveal" class="stack" style="gap:0.4rem"></div>
+      <button id="btnAgain" class="volt block">เล่นอีกเกม</button>
+    </section>
+
+    <section class="card">
+      <header><h2>คะแนนสะสม</h2></header>
+      <div id="scoreboard" class="stack" style="gap:0.4rem"></div>
+      <button id="btnQuit" class="ghost">จบเกม</button>
+    </section>
+  </main>
+
+  <div id="toasts" class="toast-wrap" aria-live="polite"></div>
+
+  <script src="/guess-words.js"></script>
+  <script src="/guess-rules.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/guess-thing.js"></script>
+</body>
+</html>

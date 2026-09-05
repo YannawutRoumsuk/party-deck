@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#1a0f22" />
+  <meta name="description" content="เกมคำต้องเชื่อมฉบับเทพลีลา ผลัดกันพิมพ์คำที่เชื่อมโยงกันภายใน 10 วินาที ใช้พยางค์ซ้ำตกรอบทันที ระบบตรวจคำซ้ำภาษาไทยให้อัตโนมัติ มีระบบชาเลนจ์และโหวต">
+  <meta name="keywords" content="คำต้องเชื่อม, เกมเทพลีลา, เกมต่อคำ, เกมคำ, เกมปาร์ตี้, เกมเล่นกับเพื่อน, เกมภาษาไทย">
+  <title>คำต้องเชื่อม | Word Chain</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <main id="screenSetup" class="container stack-lg">
+    <section class="hero">
+      <p class="kicker">3–10 คน · เครื่องเดียววางกลางวง</p>
+      <h1>คำต้อง<mark>เชื่อม</mark></h1>
+      <p class="muted" style="max-width:54ch">
+        ระบบสุ่มคำตั้งต้นมาให้ แล้วผลัดกันพิมพ์คำที่เชื่อมโยงกับคำก่อนหน้าภายใน 10 วินาที
+        ใช้พยางค์ที่เคยออกไปแล้วถือว่าตกรอบทันที
+      </p>
+    </section>
+
+    <section class="card card-hot">
+      <header>
+        <h2>ใครเล่นบ้าง</h2>
+        <p class="faint">อย่างน้อย 3 คน เพราะต้องมีคนกลางไว้โหวตตอนชาเลนจ์</p>
+      </header>
+      <div id="playerInputs" class="stack" style="gap:0.5rem"></div>
+      <div class="row">
+        <button id="btnAddPlayer" class="ghost">เพิ่มคน</button>
+        <button id="btnRemovePlayer" class="ghost">ลดคน</button>
+      </div>
+      <button id="btnStart" class="primary block">เริ่มเล่น</button>
+    </section>
+
+    <section class="card">
+      <header><h2>กติกา</h2></header>
+      <ul class="info-list">
+        <li>พิมพ์คำที่เชื่อมโยงกับคำก่อนหน้า ภายใน <b>10 วินาที</b></li>
+        <li>ใช้พยางค์ที่เคยออกไปแล้ว <b>ตกรอบทันที</b> เช่น มี <i>ใบไม้</i> แล้ว จะพูด <i>ต้นไม้</i> ไม่ได้</li>
+        <li>เปลี่ยนวรรณยุกต์หรือเว้นวรรคเพื่อเลี่ยง ระบบก็ยังจับได้</li>
+        <li>ใครคิดว่าคำนั้นไม่เชื่อมโยง กด <b>ชาเลนจ์</b> แล้วให้คนที่เหลือโหวต</li>
+        <li>ชาเลนจ์ชนะ คนพูดตกรอบ คนชาเลนจ์ได้แต้มและยังชาเลนจ์ได้อีก</li>
+        <li>ชาเลนจ์แพ้ <b>หมดสิทธิ์ชาเลนจ์ทั้งรอบ</b></li>
+        <li>เล่นจนเหลือคนสุดท้าย คนนั้นได้โบนัส แล้วเริ่มรอบใหม่ คะแนนสะสมต่อ</li>
+      </ul>
+      <a class="btn ghost" href="/">กลับหน้าเลือกเกม</a>
+    </section>
+  </main>
+
+  <main id="screenPlay" class="container stack-lg" hidden>
+    <header class="topbar" style="border-radius:var(--r-lg);margin-bottom:var(--gap)">
+      <div class="grow">
+        <div class="room-tag">รอบ <span id="roundNo">1</span></div>
+        <div class="faint" id="aliveCount">-</div>
+      </div>
+      <div id="clock" class="timer idle">--</div>
+    </header>
+
+    <!-- คำล่าสุด -->
+    <section class="card">
+      <header><h2>คำล่าสุด</h2></header>
+      <div class="last-word-box">
+        <span class="last-word" id="lastWord">-</span>
+        <span class="faint" id="lastBy">-</span>
+      </div>
+    </section>
+
+    <!-- ตาพิมพ์ -->
+    <section id="turnCard" class="card card-hot" hidden>
+      <header>
+        <h2>ตาของ <span id="turnWho">-</span></h2>
+        <p class="faint">พิมพ์คำที่เชื่อมกับคำล่าสุด ห้ามใช้พยางค์ที่ออกไปแล้ว</p>
+      </header>
+      <input id="wordInput" maxlength="30" placeholder="พิมพ์คำแล้วกด Enter" autocomplete="off" />
+      <button id="btnSend" class="primary block">ส่งคำ</button>
+      <p id="turnMsg" class="faint" role="status"></p>
+    </section>
+
+    <!-- ชาเลนจ์ -->
+    <section id="challengeCard" class="card" hidden>
+      <header>
+        <h2>ชาเลนจ์!</h2>
+        <p class="faint" id="challengeSub">-</p>
+      </header>
+      <div class="last-word-box">
+        <span class="last-word" id="challengeWord">-</span>
+      </div>
+      <p class="faint">เถียงกันได้ 3 นาที แล้วให้คนที่เหลือโหวตว่าคำนี้เชื่อมโยงกับคำก่อนหน้าไหม</p>
+      <div id="voterList" class="stack" style="gap:0.5rem"></div>
+      <div class="row">
+        <span class="badge" id="tally">-</span>
+        <button id="btnResolve" class="volt grow">ปิดโหวต</button>
+      </div>
+    </section>
+
+    <!-- ปุ่มชาเลนจ์ -->
+    <section id="challengeLaunch" class="card" hidden>
+      <header>
+        <h2>ไม่เห็นด้วยกับคำล่าสุด?</h2>
+        <p class="faint">ใครก็ได้ที่ยังอยู่และยังมีสิทธิ์ กดชื่อตัวเองเพื่อชาเลนจ์</p>
+      </header>
+      <div id="challengers" class="buzz-grid"></div>
+    </section>
+
+    <!-- เหตุการณ์ล่าสุด -->
+    <section id="eventCard" class="card" hidden>
+      <div class="verdict-box">
+        <span class="verdict-word" id="eventWord">-</span>
+        <span class="faint center" id="eventDetail"></span>
+      </div>
+    </section>
+
+    <!-- สายคำ -->
+    <section class="card">
+      <header>
+        <h2>สายคำรอบนี้</h2>
+        <p class="faint">ทุกพยางค์ในนี้ถูกใช้ไปแล้ว ห้ามใช้ซ้ำ</p>
+      </header>
+      <div id="chainList" class="chain-list"></div>
+    </section>
+
+    <!-- ผู้เล่น -->
+    <section class="card">
+      <header><h2>ผู้เล่นและคะแนน</h2></header>
+      <div id="scoreboard" class="stack" style="gap:0.4rem"></div>
+      <div class="row">
+        <button id="btnNextRound" class="volt grow" hidden>เริ่มรอบใหม่</button>
+        <button id="btnQuit" class="ghost">จบเกม</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toasts" class="toast-wrap" aria-live="polite"></div>
+
+  <script src="/chain-thai.js"></script>
+  <script src="/chain-rules.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/chain.js"></script>
+</body>
+</html>

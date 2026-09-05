@@ -874,3 +874,195 @@ input:focus, select:focus { border-color: var(--hot); }
   text-align: center;
   overflow-wrap: anywhere;
 }
+
+/* ---------- หน้าเลือกเกม ---------- */
+
+.filter-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.mini-choice {
+  min-height: 44px;
+  padding: 0.5rem 0.9rem;
+  justify-items: center;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.game-grid {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px)  { .game-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1080px) { .game-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.game-card {
+  display: grid;
+  gap: 0.7rem;
+  align-content: start;
+  padding: var(--pad);
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-hard);
+  transition: transform var(--dur) var(--ease), border-color var(--dur);
+}
+
+.game-card:hover { transform: translateY(-4px); }
+
+.game-card.accent-hot:hover  { border-color: var(--hot); }
+.game-card.accent-volt:hover { border-color: var(--volt); }
+.game-card.accent-gold:hover { border-color: var(--gold); }
+
+.game-top { display: flex; gap: 0.7rem; align-items: flex-start; }
+
+.game-emoji { font-size: 2.2rem; line-height: 1; }
+
+.game-name { font-size: 1.35rem; }
+
+.game-tagline { color: var(--muted); font-size: var(--t-small); }
+
+.game-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+/* จำนวนคนคือสิ่งที่คนมองหาก่อนอย่างอื่น จึงต้องเด่นกว่า badge อื่น */
+.badge-people {
+  background: var(--volt);
+  color: var(--volt-ink);
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.game-highlights {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.25rem;
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+.game-highlights li::marker { color: var(--volt); }
+
+.game-card .btn { margin-top: auto; }
+
+.gold-btn { background: var(--gold); color: oklch(20% 0.06 85); box-shadow: 0 3px 0 oklch(55% 0.12 85); }
+
+/* ---------- เกม 24 ---------- */
+
+.card-row { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
+
+/* ไพ่ต้องอ่านออกจากอีกฝั่งโต๊ะ จึงต้องใหญ่กว่าตัวเลขทั่วไปมาก */
+.num-card {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.4rem, 1.4rem + 5vw, 4.5rem);
+  line-height: 1;
+  min-width: clamp(3.5rem, 2rem + 7vw, 6rem);
+  padding: clamp(0.6rem, 0.4rem + 1.2vw, 1.2rem);
+  text-align: center;
+  color: var(--stage-deep);
+  background: var(--volt);
+  border-radius: var(--r);
+  box-shadow: 0 5px 0 oklch(52% 0.14 118);
+  font-variant-numeric: tabular-nums;
+}
+
+.buzz-grid { display: grid; gap: 0.6rem; grid-template-columns: 1fr 1fr; }
+@media (min-width: 700px) { .buzz-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } }
+
+/* ปุ่มกดตอบต้องกดโดนง่ายตอนรีบ จึงสูงกว่าปุ่มปกติเยอะ */
+.buzz-btn {
+  min-height: 78px;
+  font-size: 1.15rem;
+  background: var(--hot);
+  color: var(--hot-ink);
+  box-shadow: 0 4px 0 oklch(38% 0.17 355);
+}
+
+.solution-line {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--stage-deep);
+  border-radius: var(--r-sm);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.note-box {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.8rem;
+  background: oklch(30% 0.09 118 / 0.18);
+  border-left: 4px solid var(--volt);
+  border-radius: var(--r-sm);
+}
+
+.note-box b { font-family: var(--font-display); color: var(--volt); }
+
+/* ---------- ทายของ 20 คำถาม ---------- */
+
+.pending-box {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.2rem, 0.9rem + 1.8vw, 2rem);
+  line-height: 1.3;
+  padding: clamp(0.8rem, 0.5rem + 1.4vw, 1.4rem);
+  background: var(--stage-deep);
+  border: 2px dashed var(--hot);
+  border-radius: var(--r);
+  overflow-wrap: anywhere;
+}
+
+.qa-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--stage-deep);
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+}
+
+/* ---------- คำต้องเชื่อม ---------- */
+
+.last-word-box { display: grid; gap: 0.2rem; justify-items: center; text-align: center; }
+
+.last-word {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.2rem, 1.4rem + 4.5vw, 4rem);
+  line-height: 1.1;
+  color: var(--volt);
+  overflow-wrap: anywhere;
+}
+
+.chain-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.chain-chip {
+  display: grid;
+  gap: 0.05rem;
+  justify-items: center;
+  padding: 0.4rem 0.7rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 0.75rem;
+}
+
+.chain-chip b { font-family: var(--font-display); font-size: 1rem; }
+.chain-chip.current { border-color: var(--volt); background: oklch(30% 0.09 118 / 0.25); }
+.chain-chip.current b { color: var(--volt); }
+
+.vote-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.6rem;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+}
+
+.score-row.lost { opacity: 0.5; }

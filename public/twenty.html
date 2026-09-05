@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#1a0f22" />
+  <meta name="description" content="เกม 24 แต้ม สุ่มเลข 4 ตัวมาบวกลบคูณหารให้ได้ 24 ระบบคำนวณให้ว่าชุดนั้นมีกี่วิธี มีระบบกันโกงตอนเถียงกัน เล่นกับเพื่อนบนเครื่องเดียว">
+  <meta name="keywords" content="เกม 24, 24 game, เกมคณิตศาสตร์, เกมเลข, เกมปาร์ตี้, เกมเล่นกับเพื่อน, เกมฝึกสมอง">
+  <title>24 แต้ม | Twenty Four</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <!-- ========== ตั้งค่า ========== -->
+  <main id="screenSetup" class="container stack-lg">
+    <section class="hero">
+      <p class="kicker">2–8 คน · เครื่องเดียววางกลางวง</p>
+      <h1>เกม <mark>24 แต้ม</mark></h1>
+      <p class="muted" style="max-width:54ch">
+        สุ่มเลขมา 4 ตัว เอามาบวกลบคูณหารให้ได้ 24 ใครคิดออกก่อนกดปุ่มแล้วพูดออกมาเลย
+        ระบบคำนวณไว้ล่วงหน้าแล้วว่าชุดนี้มีกี่วิธี จึงตัดสินได้เองว่าใครถูกใครมั่ว
+      </p>
+    </section>
+
+    <section class="card card-hot">
+      <header>
+        <h2>ใครเล่นบ้าง</h2>
+        <p class="faint">อย่างน้อย 2 คน วางเครื่องไว้กลางวงให้ทุกคนเห็นจอ</p>
+      </header>
+      <div id="playerInputs" class="stack" style="gap:0.5rem"></div>
+      <div class="row">
+        <button id="btnAddPlayer" class="ghost">เพิ่มคน</button>
+        <button id="btnRemovePlayer" class="ghost">ลดคน</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <header><h2>ความยาก</h2></header>
+      <div class="choice-grid">
+        <button class="choice" data-diff="1" aria-pressed="true">
+          <b>ปกติ</b><span class="faint">ชุดไหนก็ได้ที่ทำ 24 ได้อย่างน้อย 1 วิธี</span>
+        </button>
+        <button class="choice" data-diff="6" aria-pressed="false">
+          <b>ง่าย</b><span class="faint">เฉพาะชุดที่มีทางออกเยอะ คิดออกไว</span>
+        </button>
+      </div>
+      <button id="btnStart" class="primary block">เริ่มเล่น</button>
+    </section>
+
+    <section class="card">
+      <header><h2>กติกา</h2></header>
+      <ul class="info-list">
+        <li>ใช้เลขทั้ง <b>4 ตัว ตัวละครั้งพอดี</b> ต่อกันด้วย + − × ÷ และวงเล็บ</li>
+        <li>คิดออกแล้ว <b>กดปุ่มชื่อตัวเอง</b> แล้วพูดสูตรออกมาให้ทุกคนฟังภายใน 10 วินาที</li>
+        <li>คนอื่นกด <b>ถูก</b> หรือ <b>ไม่ถูก</b> ถ้าถูกได้ +1 แต้ม</li>
+        <li>หมดเวลาพูด หรือพูดผิด <b>ติดลบ 1 แต้ม</b></li>
+        <li>ถ้าถูกปัดตกหรือไม่มีใครกดตัดสิน จะให้พิมพ์สูตรแล้ว<b>ระบบตัดสินเอง</b></li>
+      </ul>
+      <div class="note-box">
+        <b>กันโกงยังไง</b>
+        <p class="muted">ถ้าโดนปัดตกแล้วพิมพ์สูตรออกมาถูกจริง คนที่ปัดตกจะโดนหักแต้ม
+        การแกล้งกดว่าผิดจึงไม่มีทางได้กำไร มีแต่เสีย</p>
+      </div>
+      <a class="btn ghost" href="/">กลับหน้าเลือกเกม</a>
+    </section>
+  </main>
+
+  <!-- ========== หน้าเล่น ========== -->
+  <main id="screenPlay" class="container stack-lg" hidden>
+    <header class="topbar" style="border-radius:var(--r-lg);margin-bottom:var(--gap)">
+      <div class="grow">
+        <div class="room-tag">ชุดที่ <span id="roundNo">1</span></div>
+        <div class="faint" id="solutionHint">-</div>
+      </div>
+      <div id="clock" class="timer idle">--</div>
+    </header>
+
+    <!-- ไพ่ 4 ใบ -->
+    <section class="card">
+      <div id="cards" class="card-row"></div>
+      <p class="faint center" id="cardsHint">ใครคิดออกก่อน กดปุ่มชื่อตัวเองด้านล่าง</p>
+    </section>
+
+    <!-- ปุ่มกดตอบของแต่ละคน -->
+    <section id="buzzCard" class="card">
+      <header><h2>กดตอบ</h2></header>
+      <div id="buzzers" class="buzz-grid"></div>
+      <button id="btnSkip" class="ghost block">ไม่มีใครคิดออก ข้ามชุดนี้</button>
+    </section>
+
+    <!-- กำลังพูด รอตัดสิน -->
+    <section id="judgeCard" class="card card-hot" hidden>
+      <header>
+        <h2><span id="claimerName">-</span> กดตอบ!</h2>
+        <p class="faint">พูดสูตรออกมาให้ทุกคนฟัง แล้วให้คนอื่นกดตัดสิน</p>
+      </header>
+      <div class="row">
+        <button id="btnAccept" class="volt grow">✅ ถูกต้อง</button>
+        <button id="btnReject" class="danger grow">❌ ไม่ถูก</button>
+      </div>
+      <p class="faint">ถ้าไม่มีใครกดจนหมดเวลา ระบบจะขอให้พิมพ์สูตรแล้วตัดสินเอง</p>
+    </section>
+
+    <!-- ระบบตัดสิน -->
+    <section id="typeCard" class="card" hidden>
+      <header>
+        <h2>พิมพ์สูตรให้ระบบตัดสิน</h2>
+        <p class="faint" id="typeWhy">-</p>
+      </header>
+      <div>
+        <label for="exprInput">สูตรของ <span id="typeWho">-</span></label>
+        <input id="exprInput" placeholder="เช่น (4+2)*(6-2)" autocomplete="off" autocapitalize="off" />
+        <p class="faint">ใช้ + − * / และวงเล็บ ใช้เลขทั้ง 4 ตัวตัวละครั้ง</p>
+      </div>
+      <button id="btnSubmitExpr" class="primary block">ส่งให้ระบบตรวจ</button>
+      <p id="exprMsg" class="faint" role="status"></p>
+    </section>
+
+    <!-- ผลของตา -->
+    <section id="outcomeCard" class="card" hidden>
+      <div class="verdict-box">
+        <span class="verdict-word" id="outcomeWord">-</span>
+        <span class="faint" id="outcomeDetail"></span>
+      </div>
+      <div id="revealBox" class="stack" style="gap:0.4rem"></div>
+      <button id="btnNext" class="volt block">ชุดต่อไป</button>
+    </section>
+
+    <!-- คะแนน -->
+    <section class="card">
+      <header><h2>คะแนน</h2></header>
+      <div id="scoreboard" class="stack" style="gap:0.4rem"></div>
+      <div class="row">
+        <button id="btnShowAll" class="ghost grow">ดูเฉลยทั้งหมดของชุดนี้</button>
+        <button id="btnQuit" class="ghost">จบเกม</button>
+      </div>
+      <div id="allSolutions" class="stack" style="gap:0.3rem" hidden></div>
+    </section>
+  </main>
+
+  <div id="toasts" class="toast-wrap" aria-live="polite"></div>
+
+  <script src="/twenty-rules.js"></script>
+  <script src="/twenty-match.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/twenty.js"></script>
+</body>
+</html>

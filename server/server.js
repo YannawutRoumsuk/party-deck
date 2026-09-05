@@ -36,11 +36,37 @@ app.use(express.static(path.join(__dirname, "..", "public"), {
 // (เล่นในวงเหล้า/เน็ตบ้านบางที่ CDN โดนบล็อก QR ต้องขึ้นให้ได้อยู่ดี)
 // โหมดต่อหน้ากันรันกติกาในเบราว์เซอร์ล้วน จึงต้องใช้ไฟล์เดียวกับที่ server ใช้
 // ถ้าก๊อปไปไว้อีกที่ วันหนึ่งสองฝั่งจะเพี้ยนกันแน่นอน
+// ทะเบียนเกม หน้า hub อ่านจากไฟล์เดียวกับที่ server ใช้
+const CATALOG = require.resolve("./games/catalog");
+app.get("/catalog.js", (_req, res) => {
+  res.type("application/javascript");
+  res.setHeader("Cache-Control", "no-cache");
+  res.sendFile(CATALOG);
+});
+
 const NUMBERS_RULES = require.resolve("./games/numbers/rules");
 app.get("/numbers-rules.js", (_req, res) => {
   res.type("application/javascript");
   res.setHeader("Cache-Control", "no-cache");
   res.sendFile(NUMBERS_RULES);
+});
+
+// เกมที่รันในเบราว์เซอร์ล้วน แต่ใช้ไฟล์กติกาเดียวกับที่เทสต์ฝั่ง node
+// เสิร์ฟตรงจากซอร์ส ไม่ก๊อป ไม่ bundle จึงไม่มีทางเพี้ยนคนละทาง
+[
+  ["/twenty-rules.js", "./games/twenty/rules"],
+  ["/twenty-match.js", "./games/twenty/match"],
+  ["/guess-words.js", "./games/guess/words"],
+  ["/guess-rules.js", "./games/guess/rules"],
+  ["/chain-thai.js", "./games/chain/thai"],
+  ["/chain-rules.js", "./games/chain/rules"]
+].forEach(([route, mod]) => {
+  const file = require.resolve(mod);
+  app.get(route, (_req, res) => {
+    res.type("application/javascript");
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(file);
+  });
 });
 
 const QRCODE_LIB = require.resolve("qrcode-generator");
