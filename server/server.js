@@ -30,6 +30,15 @@ app.use(express.static(path.join(__dirname, "..", "public"), {
     );
   }
 }));
+// เสิร์ฟไลบรารี QR จาก node_modules ตรงๆ ไม่ต้อง bundle และไม่ต้องพึ่ง CDN
+// (เล่นในวงเหล้า/เน็ตบ้านบางที่ CDN โดนบล็อก QR ต้องขึ้นให้ได้อยู่ดี)
+const QRCODE_LIB = require.resolve("qrcode-generator");
+app.get("/vendor/qrcode.js", (_req, res) => {
+  res.type("application/javascript");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.sendFile(QRCODE_LIB);
+});
+
 app.get("/healthz", (_req, res) => res.json({ ok: true, rooms: rooms.size }));
 
 // ---------- helpers ----------

@@ -100,7 +100,22 @@
     </section>
 
     <section class="card">
-      <header><h2>ลิงก์ชวนเพื่อน</h2></header>
+      <header>
+        <h2>ชวนเพื่อนเข้าห้อง</h2>
+        <p class="faint">ให้เพื่อนสแกน QR หรือบอกรหัสห้องก็ได้</p>
+      </header>
+
+      <div class="invite">
+        <div id="qrInvite" class="qr-box" aria-live="polite"></div>
+        <div class="invite-side">
+          <div>
+            <label>รหัสห้อง</label>
+            <div class="big-code" id="bigCode">-----</div>
+          </div>
+          <button id="btnShowQr" class="volt block">แสดง QR เต็มจอ</button>
+        </div>
+      </div>
+
       <div class="copy-field">
         <code id="inviteLink">-</code>
         <button id="btnCopyInvite" class="mini ghost">คัดลอก</button>
@@ -109,6 +124,16 @@
     </section>
 
   </main>
+
+  <!-- เต็มจอ: ยกมือถือให้คนทั้งวงสแกนพร้อมกัน -->
+  <div id="qrModal" class="qr-modal" hidden role="dialog" aria-modal="true" aria-label="QR สำหรับเข้าห้อง">
+    <div class="qr-modal-inner">
+      <div id="qrBig" class="qr-box qr-box-lg"></div>
+      <div class="qr-modal-code" id="qrModalCode">-----</div>
+      <p class="muted center">สแกนเพื่อเข้าห้องได้เลย</p>
+      <button id="btnCloseQr" class="ghost block">ปิด</button>
+    </div>
+  </div>
 
   <!-- แถบจับผิดแบบติดล่าง มือเดียวก็กดถึง -->
   <div id="actionbar" class="actionbar" hidden>
@@ -119,8 +144,10 @@
   <div id="toasts" class="toast-wrap" aria-live="polite"></div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/vendor/qrcode.js"></script>
   <script src="/store.js"></script>
   <script src="/ui.js"></script>
+  <script src="/qr.js"></script>
   <script src="/game.js"></script>
 </body>
 </html>

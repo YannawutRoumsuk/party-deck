@@ -568,3 +568,85 @@ input:focus, select:focus { border-color: var(--hot); }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- QR ชวนเพื่อน ---------- */
+
+/* พื้นขาวคือข้อบังคับ ไม่ใช่การตกแต่ง — QR สีกลับด้านสแกนไม่ติดในหลายมือถือ */
+.qr-box {
+  background: #fff;
+  border-radius: var(--r);
+  padding: 0.5rem;
+  width: 100%;
+  max-width: 190px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-hard);
+}
+
+.qr-box svg { display: block; width: 100%; height: 100%; }
+
+.qr-box-lg { max-width: min(74vw, 74vh, 460px); padding: 0.75rem; }
+
+.invite {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
+@media (min-width: 520px) {
+  .invite { grid-template-columns: auto 1fr; align-items: center; justify-items: stretch; }
+}
+
+.invite-side { display: grid; gap: 0.75rem; align-content: center; width: 100%; }
+
+.big-code {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 1.2rem + 4vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: 0.18em;
+  color: var(--volt);
+}
+
+.qr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: oklch(8% 0.02 305 / 0.96);
+  backdrop-filter: blur(6px);
+  animation: toast-in 200ms var(--ease);
+}
+
+.qr-modal-inner { display: grid; gap: 0.9rem; justify-items: center; width: min(100%, 520px); }
+
+.qr-modal-code {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.2rem, 1.4rem + 5vw, 4rem);
+  line-height: 1;
+  letter-spacing: 0.2em;
+  color: var(--volt);
+}
+
+/* QR บนจอฉาย: มุมขวาบน คนดูสแกนจากทีวีได้เลย */
+.stream-join {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.stream-join .qr-box { max-width: clamp(90px, 11vw, 170px); }
+
+.stream-join-code {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.2rem, 0.8rem + 1.6vw, 2.2rem);
+  letter-spacing: 0.16em;
+  color: var(--volt);
+  line-height: 1.1;
+}

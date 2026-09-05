@@ -17,6 +17,14 @@
       <h1 class="stream-title display">ห้อง <span id="roomCode">-----</span></h1>
       <p id="subtitle" class="muted">กำลังเชื่อมต่อ...</p>
     </div>
+    <div class="stream-join">
+      <div id="qrJoin" class="qr-box"></div>
+      <div>
+        <div class="faint">สแกนเข้าห้อง</div>
+        <div class="stream-join-code" id="joinCode">-----</div>
+      </div>
+    </div>
+
     <div id="timer" class="stream-timer">--:--</div>
   </header>
 
@@ -27,7 +35,9 @@
   <div id="toasts" class="toast-wrap" aria-live="polite"></div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/vendor/qrcode.js"></script>
   <script src="/ui.js"></script>
+  <script src="/qr.js"></script>
   <script src="/stream.js"></script>
 </body>
 </html>

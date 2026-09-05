@@ -91,10 +91,18 @@
 
   // ---------- ลิงก์ ----------
 
+  var inviteUrl = "";
+
   function renderLinks() {
     var origin = window.location.origin;
-    var invite = origin + "/?room=" + roomCode;
-    $("inviteLink").textContent = invite;
+    inviteUrl = origin + "/?room=" + roomCode;
+    $("inviteLink").textContent = inviteUrl;
+    $("bigCode").textContent = roomCode;
+
+    // วาดครั้งเดียวพอ ลิงก์ห้องไม่เปลี่ยนตลอดอายุห้อง
+    if (!$("qrInvite").firstChild) {
+      FWQr.render($("qrInvite"), inviteUrl, { label: "QR เข้าห้อง " + roomCode });
+    }
 
     if (spectatorKey) {
       var stream = origin + "/stream.html?room=" + roomCode + "&key=" + encodeURIComponent(spectatorKey);
@@ -102,6 +110,34 @@
       $("openStream").href = stream;
     }
   }
+
+  // ---------- QR เต็มจอ ----------
+
+  function openQr() {
+    if (!$("qrBig").firstChild) {
+      FWQr.render($("qrBig"), inviteUrl, { label: "QR เข้าห้อง " + roomCode });
+    }
+    $("qrModalCode").textContent = roomCode;
+    $("qrModal").hidden = false;
+    $("btnCloseQr").focus();
+  }
+
+  function closeQr() {
+    $("qrModal").hidden = true;
+    $("btnShowQr").focus();
+  }
+
+  $("btnShowQr").addEventListener("click", openQr);
+  $("btnCloseQr").addEventListener("click", closeQr);
+
+  // แตะที่พื้นหลังก็ปิดได้ แต่แตะที่ตัว QR ต้องไม่ปิด (คนมักจิ้มดูใกล้ๆ)
+  $("qrModal").addEventListener("click", function (e) {
+    if (e.target === $("qrModal")) closeQr();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("qrModal").hidden) closeQr();
+  });
 
   $("btnCopyInvite").addEventListener("click", function () {
     FWUI.copy($("inviteLink").textContent, "ก๊อปลิงก์ชวนเพื่อนแล้ว");

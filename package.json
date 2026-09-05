@@ -10,8 +10,9 @@
     "test": "node --test server/*.test.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "socket.io": "^4.7.5"
+    "express": "^4.22.2",
+    "qrcode-generator": "^2.0.4",
+    "socket.io": "^4.8.3"
   },
   "description": "เกมคำต้องห้าม party game เล่นกับเพื่อนผ่านเว็บ",
   "engines": {

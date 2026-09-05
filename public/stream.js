@@ -37,6 +37,13 @@
 
   socket.on("watching", function () {
     $("subtitle").textContent = "จอฉาย · คนดูเห็นคำของทุกคน";
+
+    // QR ชี้ไปหน้าเข้าห้อง ไม่ใช่ลิงก์จอฉาย
+    // ใครสแกนจากทีวีจะเข้ามาเป็นผู้เล่น ไม่ใช่มาเห็นคำของทุกคน
+    $("joinCode").textContent = roomCode;
+    FWQr.render($("qrJoin"), window.location.origin + "/?room=" + roomCode, {
+      label: "QR เข้าห้อง " + roomCode
+    });
   });
 
   function subtitleFor(s) {
