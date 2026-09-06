@@ -13,6 +13,7 @@
 
   var TURN_MS = 10000;        // เวลาพิมพ์คำ
   var DEBATE_MS = 180000;     // เถียงกันตอนชาเลนจ์ 3 นาที
+  var REFEREE_REVOTE_MS = 60000;  // ฟังความเห็นกรรมการแล้วโหวตใหม่ 1 นาที
 
   var POINT_SURVIVE = 1;      // รอดหนึ่งรอบการวน
   var POINT_CHALLENGE_WIN = 2;
@@ -53,6 +54,9 @@
       turnIndex: 0,
       phase: "playing",      // playing | challenge | finished
       deadline: null,
+      // host เลือกได้ว่าจะเปิด "กรรมการพิเศษ" ไว้ช่วยตอนวงตกลงกันไม่ได้ไหม
+      // เปิดแล้วก็ยังเป็นแค่ความเห็น คนโหวตตัดสินเองเหมือนเดิม
+      aiReferee: !!opts.aiReferee,
       challenge: null,
       lastEvent: null,
       round: 1,
@@ -192,7 +196,9 @@
       defenderId: last.byId,
       defenderName: last.byName,
       word: last.word,
-      votes: {}          // playerId -> true(เชื่อมโยง) / false(ไม่เชื่อมโยง)
+      votes: {},         // playerId -> true(เชื่อมโยง) / false(ไม่เชื่อมโยง)
+      aiOpinion: null,   // { linked, reason } ความเห็นกรรมการ ถ้าเรียกแล้ว
+      aiUsed: false      // เรียกได้ครั้งเดียวต่อหนึ่งชาเลนจ์ กันยิง API รัว
     };
     return game;
   }
@@ -231,6 +237,44 @@
     return { linked: linked, notLinked: notLinked, total: linked + notLinked };
   }
 
+  /** เรียกกรรมการได้ไหมตอนนี้ — ต้องเปิดโหมดไว้ อยู่ในชาเลนจ์ และยังไม่เคยเรียก */
+  function canAskReferee(game) {
+    return game.phase === "challenge" &&
+           !!game.aiReferee &&
+           !!game.challenge &&
+           !game.challenge.aiUsed;
+  }
+
+  /**
+   * ควรถามกรรมการอัตโนมัติไหมตอนกดปิดโหวต
+   * นับเฉพาะตอน "เสมอจริง" คือมีคนโหวตแล้วแต่คะแนนเท่ากัน
+   * 0-0 ไม่นับ เพราะแปลว่าวงข้ามการโหวต ไม่ใช่ตกลงกันไม่ได้ — ยิง API ไปก็เปล่าประโยชน์
+   */
+  function shouldConsultReferee(game) {
+    if (!canAskReferee(game)) return false;
+    var t = voteTally(game);
+    return t.total > 0 && t.linked === t.notLinked;
+  }
+
+  /**
+   * บันทึกความเห็นกรรมการแล้วเปิดโหวตใหม่
+   * ล้างโหวตเดิมทิ้ง เพราะทุกคนควรได้ตัดสินใจใหม่หลังฟังเหตุผล
+   * ย้ำ: ไม่แตะคะแนน ไม่ตัดสินผล เป็นแค่ข้อมูลประกอบให้คนโหวต
+   */
+  function applyRefereeOpinion(game, opinion) {
+    if (!canAskReferee(game)) throw new Error("ตอนนี้เรียกกรรมการไม่ได้");
+    if (!opinion || typeof opinion.linked !== "boolean") {
+      throw new Error("ความเห็นกรรมการใช้ไม่ได้");
+    }
+
+    var c = game.challenge;
+    c.aiOpinion = { linked: opinion.linked, reason: String(opinion.reason || "") };
+    c.aiUsed = true;
+    c.votes = {};                                  // โหวตใหม่หมดหลังฟังเหตุผล
+    game.deadline = Date.now() + REFEREE_REVOTE_MS;
+    return game;
+  }
+
   /**
    * ปิดโหวต
    * ฝ่ายไม่เชื่อมโยงชนะ -> คนพูดตกรอบ คนชาเลนจ์ได้แต้ม และยังมีสิทธิ์ชาเลนจ์ต่อ
@@ -267,6 +311,7 @@
       linked: tally.linked,
       notLinked: tally.notLinked,
       challengerWins: challengerWins,
+      aiOpinion: c.aiOpinion,
       message: challengerWins
         ? c.defenderName + " ตกรอบ เพราะคำว่า " + c.word + " ถูกโหวตว่าไม่เชื่อมโยง"
         : c.challengerName + " ชาเลนจ์ไม่สำเร็จ หมดสิทธิ์ชาเลนจ์ในรอบนี้"
@@ -324,6 +369,10 @@
     startChallenge: startChallenge,
     vote: vote,
     voteTally: voteTally,
+    canAskReferee: canAskReferee,
+    shouldConsultReferee: shouldConsultReferee,
+    applyRefereeOpinion: applyRefereeOpinion,
+    REFEREE_REVOTE_MS: REFEREE_REVOTE_MS,
     eligibleVoters: eligibleVoters,
     resolveChallenge: resolveChallenge,
     nextRound: nextRound,

@@ -33,6 +33,13 @@
         <button id="btnAddPlayer" class="ghost">เพิ่มคน</button>
         <button id="btnRemovePlayer" class="ghost">ลดคน</button>
       </div>
+      <label class="toggle-row" id="aiRefereeRow" hidden>
+        <input type="checkbox" id="optAiReferee" />
+        <span>
+          <b>กรรมการพิเศษ (AI)</b>
+          <small class="faint">เปิดไว้เผื่อโหวตแล้วเสมอ จะขอความเห็นที่สามได้ — คนยังโหวตตัดสินเองเหมือนเดิม</small>
+        </span>
+      </label>
       <button id="btnStart" class="primary block">เริ่มเล่น</button>
     </section>
 
@@ -46,6 +53,7 @@
         <li>ชาเลนจ์ชนะ คนพูดตกรอบ คนชาเลนจ์ได้แต้มและยังชาเลนจ์ได้อีก</li>
         <li>ชาเลนจ์แพ้ <b>หมดสิทธิ์ชาเลนจ์ทั้งรอบ</b></li>
         <li>เล่นจนเหลือคนสุดท้าย คนนั้นได้โบนัส แล้วเริ่มรอบใหม่ คะแนนสะสมต่อ</li>
+        <li>เปิด <b>กรรมการพิเศษ</b> ไว้ได้ ถ้าโหวตแล้วเสมอจะมีความเห็นที่สามมาช่วย แต่คนตัดสินเองเสมอ</li>
       </ul>
       <a class="btn ghost" href="/">กลับหน้าเลือกเกม</a>
     </section>
@@ -90,9 +98,18 @@
         <span class="last-word" id="challengeWord">-</span>
       </div>
       <p class="faint">เถียงกันได้ 3 นาที แล้วให้คนที่เหลือโหวตว่าคำนี้เชื่อมโยงกับคำก่อนหน้าไหม</p>
+      <div id="refereeBox" class="referee-box" hidden>
+        <div class="referee-head">
+          <span class="referee-tag">กรรมการพิเศษ</span>
+          <span id="refereeVerdict" class="referee-verdict">-</span>
+        </div>
+        <p id="refereeReason" class="referee-reason">-</p>
+        <p class="faint">เป็นแค่ความเห็นประกอบ — เสียงโหวตของวงคือคำตัดสิน</p>
+      </div>
       <div id="voterList" class="stack" style="gap:0.5rem"></div>
       <div class="row">
         <span class="badge" id="tally">-</span>
+        <button id="btnReferee" class="ghost" hidden>ขอความเห็นกรรมการ</button>
         <button id="btnResolve" class="volt grow">ปิดโหวต</button>
       </div>
     </section>

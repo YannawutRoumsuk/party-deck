@@ -15,6 +15,9 @@ const SFState = require("./games/spyfall/state");
 const WW = require("./games/werewolf/rules");
 const WWRoles = require("./games/werewolf/roles");
 const WWState = require("./games/werewolf/state");
+const gemini = require("./ai/gemini");
+const referee = require("./ai/referee");
+const { createLimiter } = require("./ai/ratelimit");
 
 const app = express();
 const server = http.createServer(app);
@@ -84,6 +87,52 @@ app.get("/vendor/qrcode.js", (_req, res) => {
 });
 
 app.get("/healthz", (_req, res) => res.json({ ok: true, rooms: rooms.size }));
+
+// ---------- กรรมการ AI (เกมคำต้องเชื่อม) ----------
+// เกมนี้รันกติกาในเบราว์เซอร์ล้วน แต่ API key อยู่ฝั่งนี้เท่านั้น
+// จึงต้องมี endpoint บางๆ ให้เรียกผ่าน ห้ามส่ง key ลงไปให้ client เด็ดขาด
+
+const refereeLimit = createLimiter({
+  max: 4,              // ต่อ IP ต่อนาที — หนึ่งชาเลนจ์เรียกได้ครั้งเดียวอยู่แล้ว
+  windowMs: 60000,
+  dailyMax: Number(process.env.GEMINI_DAILY_MAX || 400)
+});
+
+// บอก client ว่าเปิดโหมดนี้ได้ไหม จะได้ไม่โชว์ปุ่มที่กดแล้วพัง
+app.get("/api/ai/status", (_req, res) => {
+  res.json({ available: gemini.hasKey() });
+});
+
+app.post("/api/chain/referee", express.json({ limit: "1kb" }), async (req, res) => {
+  if (!gemini.hasKey()) {
+    return res.status(503).json({ error: "ยังไม่ได้เปิดใช้กรรมการ AI" });
+  }
+
+  const gate = refereeLimit.take(req.ip || "unknown");
+  if (!gate.ok) {
+    res.setHeader("Retry-After", Math.ceil(gate.retryAfterMs / 1000));
+    return res.status(429).json({
+      error: gate.reason === "daily"
+        ? "กรรมการ AI ใช้ครบโควตาวันนี้แล้ว วันนี้ให้คนโหวตกันเองนะ"
+        : "เรียกกรรมการถี่เกินไป รอสักครู่"
+    });
+  }
+
+  const prevWord = referee.sanitizeWord(req.body && req.body.prevWord);
+  const word = referee.sanitizeWord(req.body && req.body.word);
+  if (!prevWord || !word) {
+    return res.status(400).json({ error: "ต้องส่งมาทั้งสองคำ" });
+  }
+
+  try {
+    const opinion = await referee.askReferee(prevWord, word);
+    res.json(opinion);
+  } catch (err) {
+    // ล้มยังไงเกมต้องเดินต่อได้ ฝั่ง client จะกลับไปให้คนโหวตกันเอง
+    console.error("[referee]", err.code || "", err.message);
+    res.status(502).json({ error: "กรรมการไม่ว่าง ให้คนโหวตกันต่อได้เลย" });
+  }
+});
 
 // ---------- helpers ----------
 

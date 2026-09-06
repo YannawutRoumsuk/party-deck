@@ -13,6 +13,8 @@
   var names = ["", "", ""];
   var game = null;
   var ticker = null;
+  var aiAvailable = false;   // server มี key ไหม ถ้าไม่มีก็ไม่โชว์สวิตช์ให้กดหลอกๆ
+  var askingReferee = false;
 
   // ---------- ตั้งค่า ----------
 
@@ -44,10 +46,21 @@
   });
   renderPlayerInputs();
 
+  // ถามฝั่ง server ก่อนว่าเปิดกรรมการ AI ได้ไหม — ถามไม่ได้ก็ถือว่าไม่มี เกมเล่นได้ปกติ
+  fetch("/api/ai/status")
+    .then(function (r) { return r.ok ? r.json() : { available: false }; })
+    .then(function (d) {
+      aiAvailable = !!(d && d.available);
+      $("aiRefereeRow").hidden = !aiAvailable;
+    })
+    .catch(function () { /* ไม่มีก็ไม่เป็นไร */ });
+
   $("btnStart").addEventListener("click", function () {
     var finals = names.map(function (n, i) { return n.trim() || "ผู้เล่น " + (i + 1); });
     try {
-      game = C.createGame(finals);
+      game = C.createGame(finals, {
+        aiReferee: aiAvailable && $("optAiReferee").checked
+      });
     } catch (e) {
       FWUI.toast(e.message, "bad");
       return;
@@ -169,6 +182,64 @@
     var t = C.voteTally(game);
     var need = C.eligibleVoters(game).length;
     $("tally").textContent = "เชื่อมโยง " + t.linked + " · ไม่เชื่อมโยง " + t.notLinked + " (โหวตแล้ว " + t.total + "/" + need + ")";
+
+    // ความเห็นกรรมการ (ถ้าเรียกไปแล้ว) — โชว์ไว้ให้เห็นตอนโหวตใหม่
+    var box = $("refereeBox");
+    if (c.aiOpinion) {
+      box.hidden = false;
+      $("refereeVerdict").textContent = c.aiOpinion.linked ? "น่าจะเชื่อมโยง" : "น่าจะไม่เชื่อมโยง";
+      $("refereeVerdict").className = "referee-verdict " + (c.aiOpinion.linked ? "ok" : "no");
+      $("refereeReason").textContent = c.aiOpinion.reason || "(ไม่ได้ให้เหตุผล)";
+    } else {
+      box.hidden = true;
+    }
+
+    var btn = $("btnReferee");
+    btn.hidden = !C.canAskReferee(game);
+    btn.disabled = askingReferee;
+    btn.textContent = askingReferee ? "กำลังถาม..." : "ขอความเห็นกรรมการ";
+  }
+
+  /**
+   * ถามกรรมการแล้วเปิดโหวตใหม่
+   * ล้มยังไงก็ต้องให้วงโหวตกันต่อได้ ไม่ใช่ค้าง — จึงคืน false เมื่อไม่สำเร็จ
+   */
+  function askReferee() {
+    if (!C.canAskReferee(game) || askingReferee) return Promise.resolve(false);
+
+    var c = game.challenge;
+    var chain = game.chain;
+    var prev = chain.length > 1 ? chain[chain.length - 2].word : chain[0].word;
+
+    askingReferee = true;
+    render();
+
+    return fetch("/api/chain/referee", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prevWord: prev, word: c.word })
+    })
+      .then(function (r) {
+        return r.json().then(function (d) {
+          if (!r.ok) throw new Error(d && d.error ? d.error : "กรรมการไม่ว่าง");
+          return d;
+        });
+      })
+      .then(function (op) {
+        C.applyRefereeOpinion(game, op);
+        FWUI.toast("กรรมการให้ความเห็นแล้ว โหวตกันใหม่อีกรอบ", "good");
+        return true;
+      })
+      .catch(function (err) {
+        FWUI.toast(err.message || "เรียกกรรมการไม่สำเร็จ", "bad");
+        return false;
+      })
+      .then(function (ok) {
+        askingReferee = false;
+        render();
+        if (ok) runClock();
+        return ok;
+      });
   }
 
   function renderEvent() {
@@ -260,14 +331,28 @@
     if (e.key === "Enter") $("btnSend").click();
   });
 
+  $("btnReferee").addEventListener("click", function () { askReferee(); });
+
   $("btnResolve").addEventListener("click", function () {
     var t = C.voteTally(game);
     if (t.total === 0 && !window.confirm("ยังไม่มีใครโหวตเลย ปิดโหวตเลยไหม?")) return;
 
+    // เสมอ + เปิดกรรมการไว้ = ขอความเห็นก่อน แล้วให้โหวตใหม่ ไม่ปิดโหวตตอนนี้
+    // ถ้าเรียกไม่สำเร็จก็ปิดโหวตตามกติกาเดิมไปเลย เกมต้องไม่ค้าง
+    if (C.shouldConsultReferee(game)) {
+      askReferee().then(function (ok) {
+        if (!ok) closeVote();
+      });
+      return;
+    }
+    closeVote();
+  });
+
+  function closeVote() {
     C.resolveChallenge(game);
     render();
     if (game.phase !== "finished") runClock();
-  });
+  }
 
   $("btnNextRound").addEventListener("click", function () {
     C.nextRound(game);

@@ -1185,3 +1185,66 @@ input:focus, select:focus { border-color: var(--hot); }
 .comp-row .stepper { display: flex; align-items: center; gap: 0.35rem; }
 .comp-row .stepper button { min-height: 36px; min-width: 36px; padding: 0; }
 .comp-count { font-family: var(--font-display); font-weight: 700; min-width: 1.5rem; text-align: center; }
+
+/* ---------- กรรมการพิเศษ (AI) ---------- */
+/* ตั้งใจให้ดูเป็น "ความเห็นแปะข้าง" ไม่ใช่คำตัดสิน
+   จึงใช้เส้นประและสีทึบกว่าการ์ดหลัก ไม่ให้เด่นกว่าปุ่มโหวตของคน */
+
+.toggle-row {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 0.8rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md, 12px);
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.toggle-row:hover { border-color: var(--gold); }
+.toggle-row:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* กฎ input ส่วนกลางบังคับ width:100% + min-height:48px ซึ่งทำให้ checkbox บาน
+   ต้องเขียนทับให้ครบทุกค่า ไม่งั้นกล่องติ๊กใหญ่กว่าข้อความ */
+.toggle-row input[type="checkbox"] {
+  flex: none;
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  margin: 0.15rem 0 0;
+  accent-color: var(--gold);
+}
+/* min-width:0 กันข้อความยาวดันกล่องจนล้นขอบการ์ด */
+.toggle-row span { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; min-width: 0; }
+.toggle-row small { font-size: var(--t-small); line-height: 1.4; }
+
+.referee-box {
+  border: 1px dashed var(--gold);
+  border-radius: var(--r-md, 12px);
+  background: color-mix(in oklch, var(--gold) 8%, var(--surface-2));
+  padding: 0.85rem;
+  margin-block: 0.75rem;
+}
+.referee-head {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+.referee-tag {
+  font-family: var(--font-display);
+  font-size: var(--t-small);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.referee-verdict { font-family: var(--font-display); font-weight: 600; }
+.referee-verdict.ok { color: var(--volt); }
+.referee-verdict.no { color: var(--danger); }
+.referee-reason { margin: 0 0 0.35rem; line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle-row { transition: none; }
+}

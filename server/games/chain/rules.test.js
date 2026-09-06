@@ -198,3 +198,106 @@ test("คำตั้งต้นสุ่มมาจากรายการ�
     assert.ok(C.SEED_WORDS.includes(C.randomSeed()));
   }
 });
+
+// ── กรรมการ AI (เสริม ไม่ใช่ตัวตัดสิน) ────────────────────────────────
+const AI_NAMES = ["เอ", "บี", "ซี", "ดี"];
+
+function challengeReady(opts) {
+  const g = C.createGame(AI_NAMES, Object.assign({ seed: "ทะเล" }, opts || {}));
+  C.submitWord(g, "p0", "เกลือ");
+  C.startChallenge(g, "p1");
+  return g;
+}
+
+test("โหมดปกติไม่มีกรรมการ AI ให้เรียก", () => {
+  const g = challengeReady();
+  assert.strictEqual(g.aiReferee, false);
+  assert.strictEqual(C.canAskReferee(g), false);
+});
+
+test("host เปิดกรรมการ AI แล้วเรียกได้", () => {
+  const g = challengeReady({ aiReferee: true });
+  assert.strictEqual(g.aiReferee, true);
+  assert.strictEqual(C.canAskReferee(g), true);
+});
+
+test("เรียกกรรมการได้ครั้งเดียวต่อหนึ่งชาเลนจ์", () => {
+  const g = challengeReady({ aiReferee: true });
+  C.applyRefereeOpinion(g, { linked: true, reason: "ทะเลมีเกลือ" });
+  assert.strictEqual(C.canAskReferee(g), false);
+  assert.throws(() => C.applyRefereeOpinion(g, { linked: false, reason: "x" }));
+});
+
+test("ความเห็นกรรมการล้างโหวตเดิม ให้ทุกคนโหวตใหม่หลังฟังเหตุผล", () => {
+  const g = challengeReady({ aiReferee: true });
+  C.vote(g, "p2", true);
+  C.vote(g, "p3", false);
+  assert.strictEqual(C.voteTally(g).total, 2);
+
+  C.applyRefereeOpinion(g, { linked: true, reason: "ทะเลมีเกลือ" });
+  assert.strictEqual(C.voteTally(g).total, 0, "ต้องเคลียร์โหวตให้โหวตใหม่");
+  assert.strictEqual(g.challenge.aiOpinion.linked, true);
+  assert.strictEqual(g.phase, "challenge", "ยังอยู่ในโหมดชาเลนจ์");
+});
+
+test("เสมอ + เปิด AI ไว้ = ควรถามกรรมการก่อนปิดโหวต", () => {
+  const g = challengeReady({ aiReferee: true });
+  C.vote(g, "p2", true);
+  C.vote(g, "p3", false);
+  assert.strictEqual(C.shouldConsultReferee(g), true);
+});
+
+test("ไม่เสมอ ไม่ต้องถามกรรมการ ให้จบด้วยเสียงคน", () => {
+  const g = challengeReady({ aiReferee: true });
+  C.vote(g, "p2", false);
+  C.vote(g, "p3", false);
+  assert.strictEqual(C.shouldConsultReferee(g), false);
+});
+
+test("ยังไม่มีใครโหวตเลย ไม่ยิง API ทิ้ง", () => {
+  const g = challengeReady({ aiReferee: true });
+  assert.strictEqual(C.shouldConsultReferee(g), false, "0-0 ไม่ใช่การหาข้อสรุปไม่ได้");
+});
+
+test("ฟัง AI แล้วโหวตใหม่ยังเสมอ ใช้กติกาเดิม คนชาเลนจ์แพ้", () => {
+  const g = challengeReady({ aiReferee: true });
+  C.vote(g, "p2", true);
+  C.vote(g, "p3", false);
+  C.applyRefereeOpinion(g, { linked: false, reason: "คนละเรื่อง" });
+
+  C.vote(g, "p2", true);
+  C.vote(g, "p3", false);
+  assert.strictEqual(C.shouldConsultReferee(g), false, "ถามซ้ำไม่ได้แล้ว");
+
+  C.resolveChallenge(g);
+  assert.strictEqual(g.lastEvent.challengerWins, false, "เสมอ = คนชาเลนจ์แพ้ตามเดิม");
+});
+
+test("AI บอกว่าไม่เชื่อมโยง แต่คนโหวตว่าเชื่อมโยง คนชนะ", () => {
+  const g = challengeReady({ aiReferee: true });
+  C.applyRefereeOpinion(g, { linked: false, reason: "คนละเรื่อง" });
+  C.vote(g, "p2", true);
+  C.vote(g, "p3", true);
+  C.resolveChallenge(g);
+
+  assert.strictEqual(g.lastEvent.challengerWins, false, "เสียงคนต้องชนะความเห็น AI");
+  assert.strictEqual(C.playerById(g, "p0").alive, true, "คนพูดต้องไม่ตกรอบ");
+});
+
+test("ชาเลนจ์ครั้งใหม่ เรียกกรรมการได้ใหม่", () => {
+  const g = challengeReady({ aiReferee: true });
+  C.applyRefereeOpinion(g, { linked: true, reason: "x" });
+  C.vote(g, "p2", true);
+  C.vote(g, "p3", true);
+  C.resolveChallenge(g);
+
+  C.submitWord(g, "p1", "น้ำปลา");
+  C.startChallenge(g, "p2");
+  assert.strictEqual(C.canAskReferee(g), true, "ชาเลนจ์ใหม่ = สิทธิ์ใหม่");
+});
+
+test("เรียกกรรมการนอกช่วงชาเลนจ์ไม่ได้", () => {
+  const g = C.createGame(AI_NAMES, { seed: "ทะเล", aiReferee: true });
+  assert.strictEqual(C.canAskReferee(g), false);
+  assert.throws(() => C.applyRefereeOpinion(g, { linked: true, reason: "x" }));
+});
