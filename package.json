@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "node server/server.js",
     "start": "node server/server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "gen:lexicon": "node --env-file=.env scripts/gen-lexicon.js",
+    "gen:packs": "node --env-file=.env scripts/gen-packs.js"
   },
   "dependencies": {
     "express": "^4.22.2",

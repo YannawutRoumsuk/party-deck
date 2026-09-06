@@ -4,9 +4,9 @@
 // ชุดนี้ปรับให้เป็นที่ที่คนไทยนึกภาพออกทันที เพราะเกมนี้อยู่ที่การถามตอบ
 // ถ้านึกภาพสถานที่ไม่ออก คำถามก็ตัน เกมก็ตาย
 (function (root, factory) {
-  if (typeof module === "object" && module.exports) module.exports = factory();
-  else root.SpyfallLocations = factory();
-})(typeof self !== "undefined" ? self : this, function () {
+  if (typeof module === "object" && module.exports) module.exports = factory(require("./locations-extra"));
+  else root.SpyfallLocations = factory(root.SpyfallExtra);
+})(typeof self !== "undefined" ? self : this, function (EXTRA) {
   "use strict";
 
   var PACKS = [
@@ -98,6 +98,20 @@
   function locationNames(packIds) {
     return allLocations(packIds).map(function (l) { return l.name; }).sort();
   }
+
+  // สถานที่ที่ generate มา ต่อท้ายแพ็กแรก (แพ็กไทยๆ) เพราะออกแบบให้เป็นชุดหลัก
+  // โหลดไม่ได้ก็ไม่เป็นไร เล่นได้ด้วยชุดที่คัดเอง
+  (function () {
+    var extra = (EXTRA && EXTRA.LOCATIONS) || [];
+    if (!extra.length || !PACKS.length) return;
+    var seen = Object.create(null);
+    PACKS.forEach(function (p) {
+      p.locations.forEach(function (l) { seen[l.name] = true; });
+    });
+    extra.forEach(function (l) {
+      if (!seen[l.name]) { seen[l.name] = true; PACKS[0].locations.push(l); }
+    });
+  })();
 
   function packById(id) {
     for (var i = 0; i < PACKS.length; i++) if (PACKS[i].id === id) return PACKS[i];

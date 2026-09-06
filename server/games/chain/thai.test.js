@@ -148,3 +148,28 @@ test("ชุดคำที่ควรผ่านทั้งหมด ต้�
     assert.strictEqual(r.repeat, false, distinct[i] + " ไม่ควรชนกับใคร แต่ได้ " + r.reason);
   }
 });
+
+// ── พจนานุกรมที่ generate มา ──────────────────────────────────────────
+// ไฟล์นี้สร้างด้วยสคริปต์ จึงต้องมีเทสคุมคุณภาพไว้
+// ไม่งั้นวันหลังใครรัน gen-lexicon.js แล้วได้ของเสียมา จะไม่มีใครรู้
+const LEX = require("./lexicon");
+
+test("คำที่ generate มาต้องเป็นอักษรไทยล้วน ไม่มีช่องว่างหรือตัวเลข", () => {
+  const bad = LEX.WORDS.filter((w) => !/^[ก-๎]+$/.test(w));
+  assert.deepStrictEqual(bad, [], "เจอคำที่ไม่ใช่อักษรไทยล้วน");
+});
+
+test("คำที่ generate มาต้องสั้นพอที่จะเป็นคำมูล", () => {
+  const tooLong = LEX.WORDS.filter((w) => w.length > 8);
+  assert.deepStrictEqual(tooLong, [], "คำยาวเกิน 8 ตัวมักเป็นคำประสม");
+});
+
+test("ต้องไม่มีคำซ้ำในไฟล์ที่ generate มา", () => {
+  assert.strictEqual(new Set(LEX.WORDS).size, LEX.WORDS.length);
+});
+
+test("โหลด lexicon ไม่ได้ ตัวตัดคำต้องยังทำงานด้วยชุดที่คัดเอง", () => {
+  const T = require("./thai");
+  assert.ok(T.DICT_SIZE >= 200, "ชุดคัดเองต้องยังอยู่ครบ");
+  assert.deepStrictEqual(T.segment("ใบไม้"), ["ใบ", "ไม"]);
+});

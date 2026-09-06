@@ -3,9 +3,9 @@
 // แยกเป็น "รู้จักดี" กับ "รู้จักน้อย" เพราะความยากของเกมนี้อยู่ที่
 // ทั้งวงต้องรู้จักสิ่งนั้นพอกัน ไม่งั้นคนตอบก็ตอบไม่ได้ เกมค้าง
 (function (root, factory) {
-  if (typeof module === "object" && module.exports) module.exports = factory();
-  else root.GuessWords = factory();
-})(typeof self !== "undefined" ? self : this, function () {
+  if (typeof module === "object" && module.exports) module.exports = factory(require("./words-extra"));
+  else root.GuessWords = factory(root.GuessWordsExtra);
+})(typeof self !== "undefined" ? self : this, function (EXTRA) {
   "use strict";
 
   var PACKS = [
@@ -118,6 +118,23 @@
       "มีมานานเกิน 100 ปีแล้วไหม"
     ]
   };
+
+  // คำที่ generate มา เติมเข้าแพ็กตาม id เดิม ไม่สร้างแพ็กใหม่
+  // กันคำซ้ำทั้งใน common และ rare ของแพ็กเดียวกัน
+  (function () {
+    var byPack = (EXTRA && EXTRA.BY_PACK) || {};
+    PACKS.forEach(function (p) {
+      var add = byPack[p.id];
+      if (!add) return;
+      var seen = Object.create(null);
+      p.common.concat(p.rare).forEach(function (x) { seen[x] = true; });
+      ["common", "rare"].forEach(function (lv) {
+        (add[lv] || []).forEach(function (x) {
+          if (!seen[x]) { seen[x] = true; p[lv].push(x); }
+        });
+      });
+    });
+  })();
 
   function packById(id) {
     for (var i = 0; i < PACKS.length; i++) if (PACKS[i].id === id) return PACKS[i];

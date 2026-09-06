@@ -37,6 +37,15 @@
       </div>
     </section>
 
+    <!-- โหมดเล่นคนเดียว: โผล่เฉพาะตอน server มี key -->
+    <section class="card" id="soloCard" hidden>
+      <header>
+        <h2>ไม่มีคู่?</h2>
+        <p class="faint">ให้ระบบสุ่มของมาให้ทาย แล้ว AI เป็นฝ่ายตอบใช่/ไม่ใช่</p>
+      </header>
+      <button id="btnSolo" class="volt block">เล่นคนเดียว สู้ AI</button>
+    </section>
+
     <section class="card">
       <header>
         <h2>จะเอาคำมาจากไหน</h2>
@@ -176,8 +185,62 @@
 
   <div id="toasts" class="toast-wrap" aria-live="polite"></div>
 
+
+  <!-- ── โหมดเล่นคนเดียว ────────────────────────────────────────── -->
+  <main id="screenSolo" class="container stack-lg" hidden>
+
+    <section class="card card-hot">
+      <header>
+        <h2>ทายให้ได้ว่าคืออะไร</h2>
+        <p class="faint" id="soloMeta">-</p>
+      </header>
+      <div class="row">
+        <span class="badge" id="soloQLeft">-</span>
+        <span class="badge" id="soloGLeft">-</span>
+      </div>
+    </section>
+
+    <section class="card" id="soloAskCard">
+      <header>
+        <h2>ถามคำถาม</h2>
+        <p class="faint">ถามได้เฉพาะคำถามที่ตอบว่าใช่หรือไม่ใช่ได้</p>
+      </header>
+      <label for="soloQuestion">คำถาม</label>
+      <input id="soloQuestion" maxlength="80" placeholder="เช่น เป็นสิ่งมีชีวิตไหม" autocomplete="off" />
+      <div class="row">
+        <button id="btnSoloAsk" class="primary grow">ถาม</button>
+      </div>
+
+      <hr class="rule" />
+
+      <label for="soloGuess">หรือจะทายเลย</label>
+      <input id="soloGuess" maxlength="40" placeholder="พิมพ์ชื่อสิ่งที่คิดว่าใช่" autocomplete="off" />
+      <button id="btnSoloGuess" class="volt block">ทาย</button>
+    </section>
+
+    <section class="card">
+      <header><h2>สิ่งที่รู้แล้ว</h2></header>
+      <div id="soloLog" class="stack" style="gap:0.5rem"></div>
+    </section>
+
+    <section id="soloResult" class="card reveal-card" hidden>
+      <div class="reveal-head">
+        <span class="verdict-word" id="soloVerdict">-</span>
+        <p class="faint" id="soloResultMsg">-</p>
+      </div>
+      <div class="row">
+        <button id="btnSoloAgain" class="primary grow">เล่นอีกครั้ง</button>
+        <a class="btn ghost" href="/">กลับหน้าเลือกเกม</a>
+      </div>
+    </section>
+
+    <button id="btnSoloQuit" class="ghost block">ออกจากโหมดเล่นคนเดียว</button>
+  </main>
+
+  <script src="/guess-words-extra.js"></script>
   <script src="/guess-words.js"></script>
   <script src="/guess-rules.js"></script>
+  <script src="/guess-solo.js"></script>
   <script src="/ui.js"></script>
   <script src="/guess-thing.js"></script>
 </body>

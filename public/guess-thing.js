@@ -368,4 +368,154 @@
   $("btnQuit").addEventListener("click", function () {
     if (window.confirm("จบเกมและกลับไปหน้าตั้งค่า?")) window.location.reload();
   });
+
+  // ---------- โหมดเล่นคนเดียว (สู้ AI) ----------
+  //
+  // คำลับสุ่มจากคลังคำเดิม ไม่ต้องยิง API — ยิงเฉพาะตอนถามและตอนทาย
+  // ข้อจำกัดที่ยอมรับ: คำลับอยู่ในเบราว์เซอร์ คนตั้งใจแอบดูก็ดูได้
+  // แต่โหมด 2 คนต่อหน้ากันก็เก็บคำลับทั้งสองฝั่งไว้ในเครื่องเดียวอยู่แล้ว
+  // เกมนี้เล่นด้วยความซื่อสัตย์เป็นหลัก จึงไม่คุ้มที่จะทำ state ฝั่ง server
+
+  var SOLO = window.GuessSolo;
+  var solo = null;
+  var soloBusy = false;
+
+  function startSolo() {
+    var w = W.pickWord(packId, level);
+    if (!w) { FWUI.toast("คลังคำหมด ลองเปลี่ยนหมวด", "bad"); return; }
+
+    solo = SOLO.createSolo(w, { packId: packId, level: level });
+    $("screenSetup").hidden = true;
+    $("screenSolo").hidden = false;
+    $("soloQuestion").value = "";
+    $("soloGuess").value = "";
+    renderSolo();
+  }
+
+  function renderSolo() {
+    var over = SOLO.isOver(solo);
+    var pack = W.packById(solo.packId);
+
+    $("soloMeta").textContent = pack ? "หมวด " + pack.name : "สุ่มจากทุกหมวด";
+    $("soloQLeft").textContent = "ถามได้อีก " + SOLO.questionsLeft(solo) + " คำถาม";
+    $("soloGLeft").textContent = "ทายได้อีก " + solo.guessesLeft + " ครั้ง";
+
+    $("soloAskCard").hidden = over;
+    $("btnSoloAsk").disabled = soloBusy || !SOLO.canAsk(solo);
+    $("btnSoloGuess").disabled = soloBusy;
+    $("btnSoloAsk").textContent = soloBusy ? "รอ..." : (SOLO.canAsk(solo) ? "ถาม" : "ถามครบแล้ว");
+
+    var log = $("soloLog");
+    clear(log);
+    if (solo.asked.length === 0 && solo.guesses.length === 0) {
+      log.appendChild(el("p", "faint", "ยังไม่ได้ถามอะไรเลย"));
+    }
+    solo.asked.forEach(function (a, i) {
+      var row = el("div", "qa-row");
+      row.appendChild(el("span", "qa-num", String(i + 1)));
+      row.appendChild(el("span", "grow", a.question));
+      row.appendChild(el("span", "badge " + answerClass(a.answer), a.answer));
+      log.appendChild(row);
+    });
+    solo.guesses.forEach(function (g) {
+      var row = el("div", "qa-row");
+      row.appendChild(el("span", "qa-num", "ทาย"));
+      row.appendChild(el("span", "grow", g.value));
+      row.appendChild(el("span", "badge " + (g.correct ? "ok" : "no"), g.correct ? "ถูก!" : "ผิด"));
+      log.appendChild(row);
+    });
+
+    $("soloResult").hidden = !over;
+    if (over) {
+      var won = solo.phase === "won";
+      $("soloVerdict").textContent = won ? "ทายถูก!" : "หมดสิทธิ์แล้ว";
+      $("soloVerdict").className = "verdict-word " + (won ? "hit" : "high");
+      $("soloResultMsg").textContent = won
+        ? 'คำตอบคือ "' + solo.secret + '" ใช้ไป ' + solo.asked.length + " คำถาม ได้ " + SOLO.score(solo) + " แต้ม"
+        : 'คำตอบคือ "' + solo.secret + '"';
+    }
+  }
+
+  function answerClass(a) {
+    if (a === "ใช่") return "ok";
+    if (a === "ไม่ใช่") return "no";
+    return "";
+  }
+
+  /** ยิงไปถามคู่ต่อสู้ — ล้มเมื่อไหร่ต้องไม่กินโควตาคำถามของคนเล่น */
+  function callOracle(payload) {
+    soloBusy = true;
+    renderSolo();
+    return fetch("/api/guess/oracle", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function (r) {
+        return r.json().then(function (d) {
+          if (!r.ok) throw new Error(d && d.error ? d.error : "คู่ต่อสู้ไม่ตอบ");
+          return d;
+        });
+      })
+      .catch(function (err) {
+        FWUI.toast(err.message || "คู่ต่อสู้ไม่ตอบ", "bad");
+        return null;
+      })
+      .then(function (d) {
+        soloBusy = false;
+        return d;
+      });
+  }
+
+  $("btnSolo").addEventListener("click", startSolo);
+
+  $("btnSoloAsk").addEventListener("click", function () {
+    var q = $("soloQuestion").value.trim();
+    if (!q) { FWUI.toast("พิมพ์คำถามก่อน", "bad"); return; }
+    if (!SOLO.canAsk(solo)) { FWUI.toast("ถามครบ 20 คำถามแล้ว ทายได้อย่างเดียว", "bad"); return; }
+
+    callOracle({
+      kind: "question",
+      secret: solo.secret,
+      question: q,
+      history: SOLO.historyForModel(solo)
+    }).then(function (d) {
+      // ถามไม่สำเร็จ ไม่นับเป็นคำถามที่ใช้ไป เพราะคนเล่นไม่ได้อะไรกลับมา
+      if (d) {
+        SOLO.recordAnswer(solo, q, d.answer);
+        $("soloQuestion").value = "";
+      }
+      renderSolo();
+    });
+  });
+
+  $("btnSoloGuess").addEventListener("click", function () {
+    var g = $("soloGuess").value.trim();
+    if (!g) { FWUI.toast("พิมพ์คำที่จะทายก่อน", "bad"); return; }
+
+    callOracle({ kind: "guess", secret: solo.secret, guess: g }).then(function (d) {
+      if (d) {
+        SOLO.recordGuess(solo, g, d.correct);
+        $("soloGuess").value = "";
+      }
+      renderSolo();
+    });
+  });
+
+  $("soloQuestion").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") $("btnSoloAsk").click();
+  });
+  $("soloGuess").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") $("btnSoloGuess").click();
+  });
+
+  $("btnSoloAgain").addEventListener("click", startSolo);
+  $("btnSoloQuit").addEventListener("click", function () { window.location.reload(); });
+
+  // โชว์ปุ่มเล่นคนเดียวก็ต่อเมื่อ server มี key จริง
+  fetch("/api/ai/status")
+    .then(function (r) { return r.ok ? r.json() : { available: false }; })
+    .then(function (d) { $("soloCard").hidden = !(d && d.available); })
+    .catch(function () { /* ไม่มีก็ไม่เป็นไร โหมด 2 คนยังเล่นได้ */ });
+
 })();

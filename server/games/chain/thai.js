@@ -7,9 +7,9 @@
 // normalize คือลอกวรรณยุกต์และเครื่องหมายออก เพื่อกันคนเลี่ยงด้วยการเปลี่ยนวรรณยุกต์
 // (ไม้ / ไม่ / ไม ถือเป็นรากเดียวกันในเกมนี้)
 (function (root, factory) {
-  if (typeof module === "object" && module.exports) module.exports = factory();
-  else root.ThaiWords = factory();
-})(typeof self !== "undefined" ? self : this, function () {
+  if (typeof module === "object" && module.exports) module.exports = factory(require("./lexicon"));
+  else root.ThaiWords = factory(root.ChainLexicon);
+})(typeof self !== "undefined" ? self : this, function (EXTRA) {
   "use strict";
 
   // วรรณยุกต์ ไม้ไต่คู้ ทัณฑฆาต นิคหิต — ตัวที่ทำให้คำหน้าตาต่างแต่รากเดียวกัน
@@ -112,10 +112,14 @@
 
   // พจนานุกรมต้องมีแต่ "คำมูล" เท่านั้น คำประสมถูกคัดออกอัตโนมัติ
   // จะได้ไม่ต้องมานั่งไล่ดูเองว่าคำไหนประสม แล้วพลาดตอนเพิ่มคำใหม่
+  // ชุดที่คัดเองมาก่อนเสมอ ของที่ generate มาต่อท้าย
+  // ถ้าโหลด lexicon.js ไม่ได้ (เช่นลืมใส่ script tag) เกมยังเล่นได้ด้วยชุดคัดเอง
+  var ALL_WORDS = LEXICON.concat((EXTRA && EXTRA.WORDS) || []);
+
   var DICT = (function () {
     var seen = Object.create(null);
     var all = [];
-    LEXICON.forEach(function (w) {
+    ALL_WORDS.forEach(function (w) {
       var n = normalize(w);
       if (n && !seen[n]) { seen[n] = true; all.push(n); }
     });

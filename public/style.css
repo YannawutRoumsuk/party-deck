@@ -1248,3 +1248,24 @@ input:focus, select:focus { border-color: var(--hot); }
 @media (prefers-reduced-motion: reduce) {
   .toggle-row { transition: none; }
 }
+
+/* ---------- โหมดเล่นคนเดียว (เกมทายของ) ---------- */
+
+/* ตัวเลขลำดับคำถาม ตรึงความกว้างไว้ ไม่งั้นข้อ 1 กับ 10 จะเยื้องกัน */
+.qa-num {
+  flex: none;
+  min-width: 1.8rem;
+  font-family: var(--font-display);
+  font-size: var(--t-small);
+  color: var(--faint);
+}
+
+/* ใช่/ไม่ใช่ ต้องอ่านออกตั้งแต่ชายตามอง เพราะคนไล่ดูย้อนหลังบ่อย */
+.badge.ok { color: var(--volt); border-color: color-mix(in oklch, var(--volt) 45%, transparent); }
+.badge.no { color: var(--danger); border-color: color-mix(in oklch, var(--danger) 45%, transparent); }
+
+.rule {
+  border: 0;
+  border-top: 1px dashed var(--line);
+  margin: 1rem 0;
+}

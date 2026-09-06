@@ -18,6 +18,7 @@ const WWState = require("./games/werewolf/state");
 const gemini = require("./ai/gemini");
 const referee = require("./ai/referee");
 const { createLimiter } = require("./ai/ratelimit");
+const oracle = require("./ai/oracle");
 
 const app = express();
 const server = http.createServer(app);
@@ -64,10 +65,14 @@ app.get("/numbers-rules.js", (_req, res) => {
 [
   ["/twenty-rules.js", "./games/twenty/rules"],
   ["/twenty-match.js", "./games/twenty/match"],
+  ["/guess-words-extra.js", "./games/guess/words-extra"],
   ["/guess-words.js", "./games/guess/words"],
   ["/guess-rules.js", "./games/guess/rules"],
+  ["/guess-solo.js", "./games/guess/solo"],
+  ["/chain-lexicon.js", "./games/chain/lexicon"],
   ["/chain-thai.js", "./games/chain/thai"],
   ["/chain-rules.js", "./games/chain/rules"],
+  ["/spyfall-extra.js", "./games/spyfall/locations-extra"],
   ["/spyfall-locations.js", "./games/spyfall/locations"],
   ["/werewolf-roles.js", "./games/werewolf/roles"]
 ].forEach(([route, mod]) => {
@@ -101,6 +106,51 @@ const refereeLimit = createLimiter({
 // บอก client ว่าเปิดโหมดนี้ได้ไหม จะได้ไม่โชว์ปุ่มที่กดแล้วพัง
 app.get("/api/ai/status", (_req, res) => {
   res.json({ available: gemini.hasKey() });
+});
+
+// ---------- คู่ต่อสู้ AI (เกมทายของ โหมดเล่นคนเดียว) ----------
+// หนึ่งเกมยิงได้ถึง ~23 ครั้ง (20 คำถาม + 3 ทาย) จึงให้โควตาต่อนาทีสูงกว่ากรรมการ
+// แต่ยังใช้เพดานรวมต่อวันก้อนเดียวกัน จะได้คุมค่าใช้จ่ายรวมได้จากที่เดียว
+const guessLimit = createLimiter({
+  max: 30,
+  windowMs: 60000,
+  dailyMax: Number(process.env.GEMINI_DAILY_MAX || 400)
+});
+
+app.post("/api/guess/oracle", express.json({ limit: "4kb" }), async (req, res) => {
+  if (!gemini.hasKey()) {
+    return res.status(503).json({ error: "ยังไม่ได้เปิดใช้โหมดเล่นคนเดียว" });
+  }
+
+  const gate = guessLimit.take(req.ip || "unknown");
+  if (!gate.ok) {
+    res.setHeader("Retry-After", Math.ceil(gate.retryAfterMs / 1000));
+    return res.status(429).json({
+      error: gate.reason === "daily"
+        ? "โหมด AI ใช้ครบโควตาวันนี้แล้ว พรุ่งนี้มาใหม่นะ"
+        : "เล่นเร็วเกินไป พักสักครู่"
+    });
+  }
+
+  const body = req.body || {};
+  const secret = oracle.sanitizeText(body.secret, 40);
+  if (!secret) return res.status(400).json({ error: "ไม่มีคำลับ" });
+
+  try {
+    if (body.kind === "guess") {
+      const guess = oracle.sanitizeText(body.guess, 40);
+      if (!guess) return res.status(400).json({ error: "ไม่มีคำที่ทาย" });
+      return res.json(await oracle.judge(secret, guess));
+    }
+
+    const question = oracle.sanitizeText(body.question);
+    if (!question) return res.status(400).json({ error: "ไม่มีคำถาม" });
+    const history = Array.isArray(body.history) ? body.history.slice(-oracle.MAX_HISTORY) : [];
+    return res.json(await oracle.answer(secret, question, history));
+  } catch (err) {
+    console.error("[oracle]", err.code || "", err.message);
+    res.status(502).json({ error: "คู่ต่อสู้ไม่ตอบ ลองใหม่อีกครั้ง" });
+  }
 });
 
 app.post("/api/chain/referee", express.json({ limit: "1kb" }), async (req, res) => {
