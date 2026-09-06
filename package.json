@@ -1,5 +1,5 @@
 {
-  "name": "forbidden-word",
+  "name": "party-deck",
   "version": "1.0.0",
   "private": true,
   "main": "server/server.js",
@@ -14,7 +14,7 @@
     "qrcode-generator": "^2.0.4",
     "socket.io": "^4.8.3"
   },
-  "description": "เกมคำต้องห้าม party game เล่นกับเพื่อนผ่านเว็บ",
+  "description": "Party Deck — รวมเกมปาร์ตี้เล่นกับเพื่อนผ่านเว็บ ไม่ต้องล็อกอิน",
   "engines": {
     "node": ">=18"
   }
