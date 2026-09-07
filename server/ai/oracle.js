@@ -87,7 +87,9 @@ async function answer(secret, question, history) {
   const raw = await generateJson({
     prompt: buildAnswerPrompt(secret, question, history),
     schema: ANSWER_SCHEMA,
-    maxOutputTokens: 24,      // ตอบคำเดียว ไม่ต้องเผื่อมาก
+    // ตอบจริงแค่ 6-11 token แต่บางครั้งโมเดลใส่คำนำหน้าก่อน JSON
+    // งบต้องเผื่อคำนำด้วย ไม่งั้นโดนตัดกลางคันแล้ว parse ไม่ผ่าน (เจอจริงตอนเทส)
+    maxOutputTokens: 100,
     temperature: 0
   });
   return parseAnswer(raw);
@@ -97,7 +99,7 @@ async function judge(secret, guess) {
   const raw = await generateJson({
     prompt: buildJudgePrompt(secret, guess),
     schema: JUDGE_SCHEMA,
-    maxOutputTokens: 16,
+    maxOutputTokens: 64,      // boolean ล้วนใช้ 5 token แต่เผื่อคำนำหน้าเหมือนกัน
     temperature: 0
   });
   return parseJudge(raw);

@@ -183,7 +183,6 @@ async function genSpyfall(perTheme) {
       const res = await generateJson({
         prompt: spyfallPrompt(theme, perTheme, [...known].slice(-60)),
         schema: SPYFALL_SCHEMA,
-        model: "gemini-2.5-flash",
         maxOutputTokens: 4096,
         temperature: 1.0
       });
@@ -225,7 +224,6 @@ async function genGuess(perPack) {
       const res = await generateJson({
         prompt: guessPrompt(pack, perPack, [...known].slice(-50)),
         schema: GUESS_SCHEMA,
-        model: "gemini-2.5-flash",
         maxOutputTokens: 2048,
         temperature: 1.0
       });

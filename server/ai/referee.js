@@ -63,7 +63,7 @@ async function askReferee(prevWord, word) {
   const raw = await generateJson({
     prompt: buildPrompt(prevWord, word),
     schema: SCHEMA,
-    maxOutputTokens: 120,
+    maxOutputTokens: 200,     // เหตุผลภาษาไทยวัดได้ ~95 token เผื่อคำนำหน้าอีกเท่าตัว
     temperature: 0.3
   });
   return parseOpinion(raw);

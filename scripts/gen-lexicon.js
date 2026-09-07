@@ -136,7 +136,6 @@ async function main() {
       const res = await generateJson({
         prompt: buildPrompt(topic, perBatch),
         schema: SCHEMA,
-        model: "gemini-2.5-flash",   // งาน generate ใช้ตัวใหญ่กว่า คำหลากหลายกว่าเยอะ
         maxOutputTokens: 4096,
         temperature: 1.0             // ต้องการความหลากหลาย ไม่ใช่คำตอบเดิมทุกครั้ง
       });

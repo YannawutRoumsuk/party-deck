@@ -5,8 +5,8 @@
   "main": "server/server.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "node server/server.js",
-    "start": "node server/server.js",
+    "dev": "node --env-file-if-exists=.env server/server.js",
+    "start": "node --env-file-if-exists=.env server/server.js",
     "test": "node --test",
     "gen:lexicon": "node --env-file=.env scripts/gen-lexicon.js",
     "gen:packs": "node --env-file=.env scripts/gen-packs.js"
@@ -18,6 +18,6 @@
   },
   "description": "Party Deck — รวมเกมปาร์ตี้เล่นกับเพื่อนผ่านเว็บ ไม่ต้องล็อกอิน",
   "engines": {
-    "node": ">=18"
+    "node": ">=20.12"
   }
 }

@@ -8,9 +8,13 @@
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
-// flash-lite ถูกสุดและเร็วพอสำหรับงานตัดสิน/ตอบสั้น
-// งาน generate เนื้อหาเยอะๆ ค่อยสั่ง model อื่นตอนเรียก
-const DEFAULT_MODEL = "gemini-2.5-flash-lite";
+// flash-lite ถูกสุด เร็วสุด และไม่เผา thinking token
+// วัดจริงกับงานในโปรเจคนี้: flash-lite 284 token vs 3.6-flash 1,938 token
+// ได้คุณภาพเท่ากันทั้งงานตัดสินและงาน generate เนื้อหา จึงใช้ตัวเดียวทั้งโปรเจค
+//
+// รุ่น 2.5 ถูกปิดสำหรับ key ใหม่แล้ว (404) ถ้าเจอ 404 อีกให้เช็คว่ารุ่นนี้ยังอยู่ไหม:
+//   curl -H "x-goog-api-key: $GEMINI_API_KEY" https://generativelanguage.googleapis.com/v1beta/models
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 
 /** มี key ให้ใช้ไหม — ไม่มีก็ต้องปิดฟีเจอร์ AI ทิ้ง ไม่ใช่ปล่อยพัง */
 function hasKey() {
@@ -83,10 +87,26 @@ async function generateJson(options) {
   if (!text) throw new GeminiError("Gemini ไม่ได้ส่งเนื้อหากลับมา", "blocked");
 
   try {
-    return JSON.parse(text);
+    return JSON.parse(stripFence(text));
   } catch {
     throw new GeminiError("Gemini ส่ง JSON ที่อ่านไม่ออก", "bad_json");
   }
+}
+
+/**
+ * ลอกคำนำหน้าและ markdown fence ออกก่อน parse
+ *
+ * ถึงจะสั่ง responseMimeType เป็น application/json แล้ว บางครั้งโมเดลก็ยังตอบ
+ * "Here is the JSON requested:```json {...}```" มาอยู่ดี (เจอจริงตอนเทส)
+ * ถ้าไม่ลอกออกจะ parse ไม่ผ่านทั้งที่ข้อมูลมาครบ
+ */
+function stripFence(text) {
+  const s = String(text).trim();
+  // ตัดเอาเฉพาะช่วงตั้งแต่ { หรือ [ ตัวแรก ถึง } หรือ ] ตัวสุดท้าย
+  const start = s.search(/[{[]/);
+  if (start < 0) return s;
+  const end = Math.max(s.lastIndexOf("}"), s.lastIndexOf("]"));
+  return end > start ? s.slice(start, end + 1) : s.slice(start);
 }
 
 module.exports = { generateJson, hasKey, GeminiError, DEFAULT_MODEL };
