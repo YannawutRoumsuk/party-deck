@@ -166,6 +166,17 @@ function fresh(mod) {
   return require(mod);
 }
 
+/**
+ * โหลดโมดูลเกมใหม่ พร้อมล้าง cache ของไฟล์ที่ generate ไว้ด้วย
+ *
+ * ต้องล้างทั้งคู่ ไม่งั้นตัวเกม require ไฟล์ extra แล้วได้ของเก่าที่ค้างใน cache
+ * ทำให้รายงานตัวเลข "รวมในเกมจริง" ผิดทั้งที่ไฟล์บนดิสก์ถูกแล้ว
+ */
+function freshWithExtra(gameMod, extraPath) {
+  delete require.cache[require.resolve(extraPath)];
+  return fresh(gameMod);
+}
+
 // ---------- งานหลัก ----------
 
 async function genSpyfall(perTheme) {
@@ -205,7 +216,7 @@ async function genSpyfall(perTheme) {
   }
 
   writeSpyfall(out);
-  const after = fresh("../server/games/spyfall/locations");
+  const after = freshWithExtra("../server/games/spyfall/locations", SPYFALL_OUT);
   console.log("\nไฟล์ generate: " + out.length + " แห่ง (เพิ่ม " + (out.length - startCount) + ")");
   console.log("รวมในเกมจริง: " + after.totalLocations() + " แห่ง\n");
 }
@@ -217,9 +228,14 @@ async function genGuess(perPack) {
 
   console.log("เกมทายของ — มีอยู่แล้ว " + startTotal + " คำ · " + words.PACKS.length + " หมวด\n");
 
+  // กันซ้ำ "ข้ามหมวด" ไม่ใช่แค่ในหมวดเดียวกัน
+  // เพราะถ้า วาฬ อยู่ทั้งหมวดสัตว์เลี้ยงลูกด้วยนมและสัตว์น้ำ คนเล่นจะเจอคำเดียวกัน
+  // จากคนละหมวด และเกมมีเทสบังคับเรื่องนี้ไว้อยู่แล้ว (rules.test.js)
+  const known = new Set();
+  words.PACKS.forEach((p) => p.common.concat(p.rare).forEach((w) => known.add(w)));
+
   for (const pack of words.PACKS) {
     process.stdout.write("  " + pack.name + " ... ");
-    const known = new Set(pack.common.concat(pack.rare));
     try {
       const res = await generateJson({
         prompt: guessPrompt(pack, perPack, [...known].slice(-50)),
@@ -246,7 +262,7 @@ async function genGuess(perPack) {
   }
 
   writeGuess(out);
-  const after = fresh("../server/games/guess/words");
+  const after = freshWithExtra("../server/games/guess/words", GUESS_OUT);
   console.log("\nรวมในเกมจริง: " + after.totalWords() + " คำ (เพิ่ม " + (after.totalWords() - startTotal) + ")\n");
 }
 

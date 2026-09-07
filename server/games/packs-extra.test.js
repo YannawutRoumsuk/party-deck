@@ -29,8 +29,16 @@ function loadWithStub(targetRel, stubRel, stubValue) {
 
 // ── Spyfall ──────────────────────────────────────────────────────────
 
+/** จำนวนตั้งต้นโดยไม่นับของที่ generate ไว้ — ใช้เป็นฐานเทียบ */
+function baseLocations() {
+  return loadWithStub("./spyfall/locations", "./spyfall/locations-extra", { LOCATIONS: [] }).totalLocations();
+}
+function baseWords() {
+  return loadWithStub("./guess/words", "./guess/words-extra", { BY_PACK: {} }).totalWords();
+}
+
 test("สถานที่ที่ generate มาถูกเติมเข้าเกม", () => {
-  const before = require("./spyfall/locations").totalLocations();
+  const before = baseLocations();
   const S = loadWithStub("./spyfall/locations", "./spyfall/locations-extra", {
     LOCATIONS: [
       { name: "ร้านซักผ้าหยอดเหรียญ", roles: ["a", "b", "c", "d", "e", "f", "g"] },
@@ -43,9 +51,8 @@ test("สถานที่ที่ generate มาถูกเติมเข�
 });
 
 test("สถานที่ชื่อซ้ำกับของเดิม ไม่ถูกเติมซ้ำ", () => {
-  const original = require("./spyfall/locations");
-  const dup = original.allLocations()[0].name;
-  const before = original.totalLocations();
+  const dup = loadWithStub("./spyfall/locations", "./spyfall/locations-extra", { LOCATIONS: [] }).allLocations()[0].name;
+  const before = baseLocations();
 
   const S = loadWithStub("./spyfall/locations", "./spyfall/locations-extra", {
     LOCATIONS: [{ name: dup, roles: ["a", "b", "c", "d", "e", "f", "g"] }]
@@ -69,9 +76,8 @@ test("ทุกสถานที่ในไฟล์ที่ generate มา�
 // ── เกมทายของ ────────────────────────────────────────────────────────
 
 test("คำที่ generate มาถูกเติมเข้าแพ็กตาม id", () => {
-  const original = require("./guess/words");
-  const packId = original.PACKS[0].id;
-  const before = original.totalWords();
+  const packId = require("./guess/words").PACKS[0].id;
+  const before = baseWords();
 
   const W = loadWithStub("./guess/words", "./guess/words-extra", {
     BY_PACK: { [packId]: { common: ["คำใหม่หนึ่ง", "คำใหม่สอง"], rare: ["คำหายากใหม่"] } }
@@ -84,9 +90,8 @@ test("คำที่ generate มาถูกเติมเข้าแพ็�
 });
 
 test("คำซ้ำกับที่มีอยู่แล้วในแพ็ก ไม่ถูกเติมซ้ำ", () => {
-  const original = require("./guess/words");
-  const pack = original.PACKS[0];
-  const before = original.totalWords();
+  const pack = loadWithStub("./guess/words", "./guess/words-extra", { BY_PACK: {} }).PACKS[0];
+  const before = baseWords();
 
   const W = loadWithStub("./guess/words", "./guess/words-extra", {
     BY_PACK: { [pack.id]: { common: [pack.common[0]], rare: [pack.rare[0]] } }
@@ -96,7 +101,7 @@ test("คำซ้ำกับที่มีอยู่แล้วในแ�
 });
 
 test("packId ที่ไม่มีอยู่จริง ถูกข้ามไปเฉยๆ ไม่พัง", () => {
-  const before = require("./guess/words").totalWords();
+  const before = baseWords();
   const W = loadWithStub("./guess/words", "./guess/words-extra", {
     BY_PACK: { "แพ็กที่ไม่มีจริง": { common: ["x"], rare: [] } }
   });
