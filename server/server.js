@@ -19,6 +19,8 @@ const TW = require("./games/twenty/match");
 const TWState = require("./games/twenty/state");
 const CH = require("./games/chain/rules");
 const CHState = require("./games/chain/state");
+const GS = require("./games/guess/rules");
+const GSState = require("./games/guess/state");
 const gemini = require("./ai/gemini");
 const referee = require("./ai/referee");
 const { createLimiter } = require("./ai/ratelimit");
@@ -204,7 +206,8 @@ function pushState(code) {
     spyfall: (viewerId) => SFState.roomView(room, viewerId),
     werewolf: (viewerId) => WWState.roomView(room, viewerId),
     twenty: (viewerId) => TWState.roomView(room, viewerId),
-    chain: (viewerId) => CHState.roomView(room, viewerId)
+    chain: (viewerId) => CHState.roomView(room, viewerId),
+    guess: (viewerId) => GSState.roomView(room, viewerId)
   };
   const build = builders[room.gameType] || ((viewerId) => stateFor(room, viewerId));
 
@@ -1209,6 +1212,130 @@ io.on("connection", (socket) => {
     if (!ctx.room.chainGame) return;
     CH.nextRound(ctx.room.chainGame);
     commitChain(ctx.room);
+    pushState(ctx.code);
+  });
+
+  // ---------- ทายของ 20 คำถาม ----------
+  //
+  // เกมนี้มีความลับจริง ของที่อีกฝ่ายตั้งไว้ต้องไม่หลุดมาถึงเรา
+  // การกรองอยู่ใน games/guess/state.js และมีเทสไล่ทุกฟิลด์ไว้แล้ว
+
+  function gsCtx(roomCode, opts) {
+    const ctx = contextOf(socket, roomCode, opts);
+    if (ctx.error) return ctx;
+    if (ctx.room.gameType !== "guess") return { error: "ห้องนี้ไม่ใช่เกมทายของ" };
+    return ctx;
+  }
+
+  function commitGuess(room) {
+    const m = room.guessMatch;
+    // ใช้ธงแยกแทนการล้าง result.scores ทิ้ง เพราะ client ยังต้องใช้แสดงผล
+    if (!m || !m.result || m.scored) return;
+    for (const [pid, pts] of Object.entries(m.result.scores || {})) {
+      const rp = room.players.get(pid);
+      if (rp) rp.score += pts;
+    }
+    m.scored = true;
+  }
+
+  socket.on("guess-settings", ({ roomCode, packId, level }) => {
+    const ctx = gsCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    ctx.room.guessSettings = {
+      packId: packId ? String(packId) : null,
+      level: ["common", "rare", "both"].indexOf(level) >= 0 ? level : "common"
+    };
+    pushState(ctx.code);
+  });
+
+  socket.on("guess-start", ({ roomCode }) => {
+    const ctx = gsCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+
+    const seated = [...ctx.room.players.values()].filter((p) => p.connected);
+    if (seated.length !== 2) return fail(socket, "เกมนี้เล่น 2 คนพอดี");
+
+    try {
+      ctx.room.guessMatch = GS.createMatch(
+        seated.map((p) => p.id),
+        ctx.room.guessSettings
+      );
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    announce(ctx.code, "guess-started", {});
+    pushState(ctx.code);
+  });
+
+  socket.on("guess-secret", ({ roomCode, value }) => {
+    const ctx = gsCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.guessMatch) return;
+    try {
+      GS.setSecret(ctx.room.guessMatch, ctx.player.id, String(value || "").slice(0, 40));
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    pushState(ctx.code);
+  });
+
+  socket.on("guess-ask", ({ roomCode, question }) => {
+    const ctx = gsCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.guessMatch) return;
+    try {
+      GS.ask(ctx.room.guessMatch, ctx.player.id, String(question || "").slice(0, 120));
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    pushState(ctx.code);
+  });
+
+  socket.on("guess-guess", ({ roomCode, value }) => {
+    const ctx = gsCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.guessMatch) return;
+    try {
+      GS.guess(ctx.room.guessMatch, ctx.player.id, String(value || "").slice(0, 40));
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    pushState(ctx.code);
+  });
+
+  socket.on("guess-respond", ({ roomCode, yes }) => {
+    const ctx = gsCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.guessMatch) return;
+    try {
+      GS.respond(ctx.room.guessMatch, ctx.player.id, !!yes);
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    if (ctx.room.guessMatch.phase === "finished") {
+      commitGuess(ctx.room);
+      announce(ctx.code, "guess-finished", {});
+    }
+    pushState(ctx.code);
+  });
+
+  // หมดเวลาในตาไหน คนนั้นเสียตา — โฮสต์ยิงคนเดียวกันซ้ำ
+  socket.on("guess-timeout", ({ roomCode }) => {
+    const ctx = gsCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return;
+    const m = ctx.room.guessMatch;
+    if (!m || m.phase === "finished" || m.phase === "picking") return;
+    GS.timeout(m);
+    if (m.phase === "finished") commitGuess(ctx.room);
+    pushState(ctx.code);
+  });
+
+  socket.on("guess-again", ({ roomCode }) => {
+    const ctx = gsCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const seated = [...ctx.room.players.values()].filter((p) => p.connected);
+    if (seated.length !== 2) return fail(socket, "เกมนี้เล่น 2 คนพอดี");
+    ctx.room.guessMatch = GS.createMatch(seated.map((p) => p.id), ctx.room.guessSettings);
     pushState(ctx.code);
   });
 

@@ -16,7 +16,7 @@
 
   <main id="screenSetup" class="container stack-lg">
     <section class="hero">
-      <p class="kicker">2 คน · เครื่องเดียว</p>
+      <p class="kicker">2 คน · คนละเครื่อง</p>
       <h1>ทายของ <mark>20 คำถาม</mark></h1>
       <p class="muted" style="max-width:54ch">
         ต่างคนต่างคิดสิ่งของหรือสิ่งมีชีวิตไว้ให้อีกฝ่ายทาย
@@ -24,19 +24,29 @@
       </p>
     </section>
 
-    <section class="card card-hot">
-      <header><h2>ใครเล่นบ้าง</h2></header>
-      <div class="grid2">
+    <div class="grid2">
+      <section class="card card-hot">
+        <header><h2>สร้างห้อง</h2></header>
         <div>
-          <label for="nameA">ผู้เล่น 1</label>
-          <input id="nameA" maxlength="20" placeholder="เช่น ต้น" autocomplete="off" />
+          <label for="createName">ชื่อของคุณ</label>
+          <input id="createName" maxlength="24" placeholder="เช่น ต้น" autocomplete="nickname" />
+        </div>
+        <button id="btnCreate" class="primary block">สร้างห้อง</button>
+      </section>
+
+      <section class="card">
+        <header><h2>เข้าห้องเพื่อน</h2></header>
+        <div>
+          <label for="joinCode">รหัสห้อง</label>
+          <input id="joinCode" class="code-input" maxlength="5" placeholder="ABCD2" autocomplete="off" autocapitalize="characters" />
         </div>
         <div>
-          <label for="nameB">ผู้เล่น 2</label>
-          <input id="nameB" maxlength="20" placeholder="เช่น เจได" autocomplete="off" />
+          <label for="joinName">ชื่อของคุณ</label>
+          <input id="joinName" maxlength="24" placeholder="เช่น เจได" autocomplete="nickname" />
         </div>
-      </div>
-    </section>
+        <button id="btnJoin" class="volt block">เข้าห้อง</button>
+      </section>
+    </div>
 
     <!-- โหมดเล่นคนเดียว: โผล่เฉพาะตอน server มี key -->
     <section class="card" id="soloCard" hidden>
@@ -93,15 +103,6 @@
   </main>
 
   <!-- ส่งเครื่อง -->
-  <div id="screenPass" class="pass-screen" hidden>
-    <div class="pass-inner">
-      <p class="muted">ส่งเครื่องให้</p>
-      <h1 id="passName" class="pass-name">-</h1>
-      <p id="passWhy" class="muted center"></p>
-      <button id="btnPassReady" class="volt block">พร้อมแล้ว</button>
-    </div>
-  </div>
-
   <main id="screenPlay" class="container stack-lg" hidden>
     <header class="topbar" style="border-radius:var(--r-lg);margin-bottom:var(--gap)">
       <div class="grow">
@@ -112,6 +113,20 @@
     </header>
 
     <!-- ตั้งคำ -->
+    <section id="lobbyCard" class="card card-hot" hidden>
+      <header>
+        <h2>รออีกคน</h2>
+        <p class="faint">เกมนี้เล่น 2 คนพอดี · สแกน QR หรือบอกรหัสห้อง</p>
+      </header>
+      <div id="qrInvite" class="qr-invite"></div>
+      <button id="btnCopyCode" class="ghost block">คัดลอกลิงก์ชวนเพื่อน</button>
+      <div id="lobbyPlayers" class="stack" style="gap:0.4rem"></div>
+      <div id="hostSetup" hidden>
+        <button id="btnStart" class="primary block">เริ่มเล่น</button>
+      </div>
+      <p id="waitHostMsg" class="faint" hidden>รอโฮสต์กดเริ่ม</p>
+    </section>
+
     <section id="pickCard" class="card card-hot" hidden>
       <header>
         <h2>ตั้งคำให้ <span id="pickFor">-</span> ทาย</h2>
@@ -238,6 +253,9 @@
     <button id="btnSoloQuit" class="ghost block">ออกจากโหมดเล่นคนเดียว</button>
   </main>
 
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/store.js"></script>
+  <script src="/qr.js"></script>
   <script src="/guess-words-extra.js"></script>
   <script src="/guess-words.js"></script>
   <script src="/guess-rules.js"></script>
