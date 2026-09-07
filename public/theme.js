@@ -109,10 +109,14 @@
     else { btn.classList.add("theme-toggle-floating"); document.body.appendChild(btn); }
   }
 
+  // เลื่อนไปหลัง tick ปัจจุบัน เพื่อให้ nav.js ได้สร้าง #themeSlot ก่อน
+  // ไม่งั้นปุ่มจะไปลอยมุมจอทั้งที่มีแถบนำทางรออยู่แล้ว
+  function mountSoon() { setTimeout(mount, 0); }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mount);
+    document.addEventListener("DOMContentLoaded", mountSoon);
   } else {
-    mount();
+    mountSoon();
   }
 
   global.FWTheme.mountToggle = mount;
