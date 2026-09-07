@@ -1,55 +1,145 @@
 /* =========================================================
-   คำต้องห้าม — ธีม "เวทีรายการวาไรตี้"
-   เวทีมืด + สปอตไลต์ + ตัวหนา + เงาแข็ง
+   Party Deck — ธีม "มินิมอล"
+   พื้นครีม ตัวอักษรคม เส้นบาง ที่ว่างเยอะ
+   รองรับโหมดสว่าง/มืด สลับได้เอง หรือตามระบบ
    ออกแบบมือถือก่อน แล้วค่อยขยายขึ้นจอใหญ่/จอฉาย
    ========================================================= */
 
-@import url("https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Anuphan:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Sans+Thai+Looped:wght@400;500;600&family=Newsreader:ital,opsz,wght@1,6..72,300;1,6..72,400&display=swap");
 
 :root {
-  /* --- สี: เวทีมืด ตั้งใจเลือกโทนนี้เพราะต้องขึ้นจอฉาย/สตรีมเป็นหลัก --- */
-  --stage:        oklch(15% 0.028 305);
-  --stage-deep:   oklch(10% 0.022 305);
-  --surface:      oklch(21% 0.032 305);
-  --surface-2:    oklch(26% 0.036 305);
-  --line:         oklch(34% 0.04 305);
+  color-scheme: light dark;
 
-  --text:         oklch(97% 0.008 300);
-  --muted:        oklch(72% 0.022 300);
-  --faint:        oklch(56% 0.02 300);
+  /* --- สีโหมดสว่าง (ค่าตั้งต้น) ---
+     พื้นครีมอุ่นแทนขาวจัด เพราะขาว 100% บนจอใหญ่แสบตาและดูเป็นเทมเพลต
+     ตัวหนังสือไม่ใช้ดำสนิท ใช้ดำอมน้ำเงินนิดๆ อ่านสบายกว่าและดูตั้งใจ */
+  --bg:           oklch(97.2% 0.004 85);
+  --bg-texture:   oklch(94.5% 0.005 85);
+  --surface:      oklch(100% 0 0);
+  --surface-2:    oklch(98% 0.003 85);
+  --line:         oklch(90% 0.004 280);
+  --line-strong:  oklch(82% 0.006 280);
 
-  --hot:          oklch(66% 0.24 355);   /* ชมพูจัด = แอคชันหลัก */
-  --hot-ink:      oklch(17% 0.06 355);
-  --volt:         oklch(90% 0.19 118);   /* เขียวนีออน = เวลา/ไฮไลต์ */
-  --volt-ink:     oklch(20% 0.08 118);
-  --danger:       oklch(63% 0.21 25);
-  --gold:         oklch(84% 0.16 85);
+  --text:         oklch(21% 0.008 280);
+  --muted:        oklch(48% 0.010 280);
+  --faint:        oklch(62% 0.008 280);
 
-  /* --- ตัวอักษร --- */
-  --font-display: "Kanit", system-ui, sans-serif;
-  --font-body:    "Anuphan", "Kanit", system-ui, sans-serif;
+  /* หมึกเข้ม = แถบนำทางและปุ่มหลัก (ลุคเดียวกับ pill สีดำในภาพอ้างอิง) */
+  --ink:          oklch(19% 0.010 280);
+  --ink-text:     oklch(98% 0.002 280);
 
-  --t-hero:  clamp(2.1rem, 1.2rem + 4.5vw, 4.5rem);
-  --t-h1:    clamp(1.5rem, 1.1rem + 2vw, 2.5rem);
-  --t-h2:    clamp(1.1rem, 0.98rem + 0.7vw, 1.45rem);
+  /* สีเน้นถูกลดความจัดลงมาก จากนีออนเป็นโทนธรรมชาติ
+     ใช้เพื่อ "สื่อความหมาย" ไม่ใช่เพื่อความแสบตา */
+  --accent:       oklch(52% 0.13 155);   /* เขียวใบไม้ = แอคชันหลัก/ยืนยัน */
+  --accent-ink:   oklch(98% 0.01 155);
+  --accent-soft:  oklch(94% 0.03 155);
+  --warn:         oklch(70% 0.14 70);
+  --danger:       oklch(55% 0.19 25);
+  --danger-soft:  oklch(95% 0.03 25);
+  --gold:         oklch(72% 0.13 85);
+
+  /* ชื่อเดิมที่โค้ดเก่ายังอ้างถึงอยู่ ชี้มาที่ token ใหม่ จะได้ไม่ต้องไล่แก้ทุกที่ */
+  --stage:        var(--bg);
+  --stage-deep:   var(--bg-texture);
+  --hot:          var(--accent);
+  --hot-ink:      var(--accent-ink);
+  --volt:         var(--accent);
+  --volt-ink:     var(--accent-ink);
+
+  /* --- ตัวอักษร ---
+     Kanit เดิมหนาและกว้าง เหมาะกับลุคเวที แต่ไม่มินิมอล
+     IBM Plex Sans Thai คุมน้ำหนักได้ละเอียดกว่าและนิ่งกว่า
+     ส่วน serif เอียงไว้ใช้กับคำเน้นในหัวเรื่อง ตามภาพอ้างอิง */
+  --font-display: "IBM Plex Sans Thai", "Kanit", system-ui, sans-serif;
+  --font-body:    "IBM Plex Sans Thai Looped", "IBM Plex Sans Thai", system-ui, sans-serif;
+  --font-accent:  "Newsreader", Georgia, serif;
+
+  --t-hero:  clamp(2.2rem, 1.1rem + 5vw, 4.75rem);
+  --t-h1:    clamp(1.5rem, 1.1rem + 2vw, 2.4rem);
+  --t-h2:    clamp(1.05rem, 0.95rem + 0.65vw, 1.35rem);
   --t-body:  clamp(0.95rem, 0.9rem + 0.25vw, 1.05rem);
   --t-small: 0.82rem;
 
-  /* --- ระยะ --- */
+  /* --- ระยะ: ใจกว้างขึ้นกว่าเดิม ความโปร่งคือหัวใจของลุคมินิมอล --- */
   --gap:     clamp(0.75rem, 0.6rem + 0.7vw, 1.15rem);
-  --pad:     clamp(1rem, 0.8rem + 1vw, 1.6rem);
-  --section: clamp(1.5rem, 1rem + 3vw, 3.5rem);
+  --pad:     clamp(1.1rem, 0.85rem + 1.2vw, 1.85rem);
+  --section: clamp(2rem, 1.2rem + 4vw, 5rem);
 
-  --r-sm: 8px;
-  --r:    14px;
-  --r-lg: 22px;
+  --r-sm: 10px;
+  --r:    16px;
+  --r-lg: 24px;
+  --r-pill: 999px;
 
-  /* เงาแข็งไม่เบลอ = ลุคเวที/ป้ายไฟ ไม่ใช่การ์ดเว็บทั่วไป */
-  --shadow-hard: 0 4px 0 var(--stage-deep);
-  --shadow-lift: 0 10px 30px -12px oklch(0% 0 0 / 0.8);
+  /* เงาฟุ้งบางๆ แทนเงาแข็ง — เงาแข็งคือลุคป้ายไฟ ไม่ใช่มินิมอล */
+  --shadow-hard: 0 1px 2px oklch(0% 0 0 / 0.05);
+  --shadow-lift: 0 12px 32px -18px oklch(0% 0 0 / 0.28);
+  --shadow-pill: 0 8px 24px -12px oklch(0% 0 0 / 0.35);
 
-  --dur: 180ms;
+  --dur: 200ms;
+  --dur-slow: 480ms;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --- โหมดมืด ---
+   เขียนทับเฉพาะ token สี ตัวอื่นใช้ร่วมกัน
+   แยกเป็น 2 บล็อกเพื่อให้ปุ่มสลับเอาชนะค่าที่ระบบตั้งมาได้ทั้งสองทาง */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:           oklch(15.5% 0.008 280);
+    --bg-texture:   oklch(18.5% 0.010 280);
+    --surface:      oklch(19.5% 0.010 280);
+    --surface-2:    oklch(23% 0.012 280);
+    --line:         oklch(29% 0.012 280);
+    --line-strong:  oklch(38% 0.014 280);
+
+    --text:         oklch(95% 0.004 280);
+    --muted:        oklch(70% 0.010 280);
+    --faint:        oklch(55% 0.010 280);
+
+    /* โหมดมืดกลับด้าน: แถบนำทางเป็นสีสว่างบนพื้นมืด */
+    --ink:          oklch(94% 0.004 280);
+    --ink-text:     oklch(17% 0.010 280);
+
+    --accent:       oklch(72% 0.15 155);
+    --accent-ink:   oklch(16% 0.03 155);
+    --accent-soft:  oklch(28% 0.05 155);
+    --warn:         oklch(78% 0.14 70);
+    --danger:       oklch(66% 0.19 25);
+    --danger-soft:  oklch(28% 0.06 25);
+    --gold:         oklch(82% 0.14 85);
+
+    --shadow-hard: 0 1px 2px oklch(0% 0 0 / 0.4);
+    --shadow-lift: 0 12px 32px -18px oklch(0% 0 0 / 0.7);
+    --shadow-pill: 0 8px 24px -12px oklch(0% 0 0 / 0.6);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg:           oklch(15.5% 0.008 280);
+  --bg-texture:   oklch(18.5% 0.010 280);
+  --surface:      oklch(19.5% 0.010 280);
+  --surface-2:    oklch(23% 0.012 280);
+  --line:         oklch(29% 0.012 280);
+  --line-strong:  oklch(38% 0.014 280);
+
+  --text:         oklch(95% 0.004 280);
+  --muted:        oklch(70% 0.010 280);
+  --faint:        oklch(55% 0.010 280);
+
+  --ink:          oklch(94% 0.004 280);
+  --ink-text:     oklch(17% 0.010 280);
+
+  --accent:       oklch(72% 0.15 155);
+  --accent-ink:   oklch(16% 0.03 155);
+  --accent-soft:  oklch(28% 0.05 155);
+  --warn:         oklch(78% 0.14 70);
+  --danger:       oklch(66% 0.19 25);
+  --danger-soft:  oklch(28% 0.06 25);
+  --gold:         oklch(82% 0.14 85);
+
+  --shadow-hard: 0 1px 2px oklch(0% 0 0 / 0.4);
+  --shadow-lift: 0 12px 32px -18px oklch(0% 0 0 / 0.7);
+  --shadow-pill: 0 8px 24px -12px oklch(0% 0 0 / 0.6);
 }
 
 * { box-sizing: border-box; }
@@ -74,12 +164,16 @@ body {
   font-size: var(--t-body);
   line-height: 1.55;
   color: var(--text);
-  background: var(--stage);
-  /* สปอตไลต์สองดวงจากด้านบน ให้รู้สึกเป็นเวทีจริง ไม่ใช่พื้นดำเรียบ */
-  background-image:
-    radial-gradient(60% 45% at 18% -8%, oklch(40% 0.16 355 / 0.5), transparent 70%),
-    radial-gradient(55% 40% at 85% -5%, oklch(45% 0.14 250 / 0.42), transparent 72%);
+  background: var(--bg);
+  /* ลายทแยงจางมาก ให้พื้นไม่เรียบจนแบน แต่ต้องจางพอที่จะไม่รบกวนการอ่าน
+     ใช้ repeating-linear-gradient แทนรูป จะได้ไม่ต้องโหลดไฟล์เพิ่ม */
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklch, var(--bg-texture) 55%, transparent) 0 1px,
+    transparent 1px 14px
+  );
   background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, .display {
@@ -428,11 +522,16 @@ input:focus, select:focus { border-color: var(--hot); }
   color: var(--hot);
 }
 
+/* คำเน้นในหัวเรื่อง: เดิมเป็นแถบไฮไลต์ทึบแบบปากกาเน้นข้อความ
+   เปลี่ยนเป็น serif เอียงสีจาง ตัดกับ sans หนาๆ รอบข้าง
+   ได้จังหวะสายตาโดยไม่ต้องใช้สีจัด */
 .hero mark {
-  background: var(--volt);
-  color: var(--volt-ink);
-  padding: 0 0.25em;
-  border-radius: 4px;
+  background: none;
+  color: var(--faint);
+  font-family: var(--font-accent);
+  font-style: italic;
+  font-weight: 400;
+  padding: 0;
 }
 
 .grid2 { display: grid; gap: var(--gap); grid-template-columns: 1fr; }
@@ -1268,4 +1367,54 @@ input:focus, select:focus { border-color: var(--hot); }
   border: 0;
   border-top: 1px dashed var(--line);
   margin: 1rem 0;
+}
+
+/* =========================================================
+   ปุ่มสลับธีม
+   ========================================================= */
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.9rem;
+  min-height: 40px;
+  font-family: var(--font-body);
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease),
+              background var(--dur) var(--ease);
+}
+.theme-toggle:hover { color: var(--text); border-color: var(--line-strong); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle-icon { font-size: 0.95rem; line-height: 1; }
+
+/* หน้าที่ไม่ได้วาง #themeSlot ไว้ ปุ่มจะลอยมุมล่างขวา
+   วางล่างเพราะบนมือถือมือเอื้อมถึงง่ายกว่า และไม่บังหัวเรื่อง */
+.theme-toggle-floating {
+  position: fixed;
+  right: max(0.9rem, env(safe-area-inset-right));
+  bottom: max(0.9rem, env(safe-area-inset-bottom));
+  z-index: 40;
+  box-shadow: var(--shadow-lift);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle { transition: none; }
+}
+
+/* บรรทัดรองใต้ชื่อ — ที่ที่ serif เอียงทำงานได้โดยไม่กลืนชื่อแบรนด์ */
+.hero-tagline {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-display);
+  font-size: var(--t-h1);
+  font-weight: 400;
+  line-height: 1.15;
+  color: var(--text);
 }
