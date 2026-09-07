@@ -29,19 +29,20 @@
         <h2>ใครเล่นบ้าง</h2>
         <p class="faint">อย่างน้อย 3 คน เพราะต้องมีคนกลางไว้โหวตตอนชาเลนจ์</p>
       </header>
-      <div id="playerInputs" class="stack" style="gap:0.5rem"></div>
-      <div class="row">
-        <button id="btnAddPlayer" class="ghost">เพิ่มคน</button>
-        <button id="btnRemovePlayer" class="ghost">ลดคน</button>
+      <div class="grid2">
+        <div>
+          <label for="createName">ชื่อของคุณ</label>
+          <input id="createName" maxlength="24" placeholder="เช่น ต้น" autocomplete="nickname" />
+          <button id="btnCreate" class="primary block">สร้างห้อง</button>
+        </div>
+        <div>
+          <label for="joinCode">เข้าห้องเพื่อน — รหัสห้อง</label>
+          <input id="joinCode" class="code-input" maxlength="5" placeholder="ABCD2" autocomplete="off" autocapitalize="characters" />
+          <label for="joinName">ชื่อของคุณ</label>
+          <input id="joinName" maxlength="24" placeholder="เช่น เจได" autocomplete="nickname" />
+          <button id="btnJoin" class="volt block">เข้าห้อง</button>
+        </div>
       </div>
-      <label class="toggle-row" id="aiRefereeRow" hidden>
-        <input type="checkbox" id="optAiReferee" />
-        <span>
-          <b>กรรมการพิเศษ (AI)</b>
-          <small class="faint">เปิดไว้เผื่อโหวตแล้วเสมอ จะขอความเห็นที่สามได้ — คนยังโหวตตัดสินเองเหมือนเดิม</small>
-        </span>
-      </label>
-      <button id="btnStart" class="primary block">เริ่มเล่น</button>
     </section>
 
     <section class="card">
@@ -63,14 +64,35 @@
   <main id="screenPlay" class="container stack-lg" hidden>
     <header class="topbar" style="border-radius:var(--r-lg);margin-bottom:var(--gap)">
       <div class="grow">
-        <div class="room-tag">รอบ <span id="roundNo">1</span></div>
+        <div class="room-tag">ห้อง <span id="roomCode">-----</span> · รอบ <span id="roundNo">1</span></div>
         <div class="faint" id="aliveCount">-</div>
       </div>
       <div id="clock" class="timer idle">--</div>
     </header>
 
     <!-- คำล่าสุด -->
-    <section class="card">
+    <section id="lobbyCard" class="card card-hot" hidden>
+      <header>
+        <h2>รอคนครบ</h2>
+        <p class="faint">อย่างน้อย 3 คน เพราะต้องมีคนกลางไว้โหวตตอนชาเลนจ์</p>
+      </header>
+      <div id="qrInvite" class="qr-invite"></div>
+      <button id="btnCopyCode" class="ghost block">คัดลอกลิงก์ชวนเพื่อน</button>
+      <div id="lobbyPlayers" class="stack" style="gap:0.4rem"></div>
+      <div id="hostSetup" hidden>
+        <label class="toggle-row" id="aiRow" hidden>
+          <input type="checkbox" id="aiToggle" />
+          <span>
+            <b>กรรมการพิเศษ (AI)</b>
+            <small class="faint">เปิดไว้เผื่อโหวตแล้วเสมอ จะขอความเห็นที่สามได้ — คนยังโหวตตัดสินเองเหมือนเดิม</small>
+          </span>
+        </label>
+        <button id="btnStart" class="primary block">เริ่มเล่น</button>
+      </div>
+      <p id="waitHostMsg" class="faint" hidden>รอโฮสต์กดเริ่ม</p>
+    </section>
+
+    <section id="wordCard" class="card" hidden>
       <header><h2>คำล่าสุด</h2></header>
       <div class="last-word-box">
         <span class="last-word" id="lastWord">-</span>
@@ -154,6 +176,9 @@
 
   <div id="toasts" class="toast-wrap" aria-live="polite"></div>
 
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/store.js"></script>
+  <script src="/qr.js"></script>
   <script src="/chain-lexicon.js"></script>
   <script src="/chain-thai.js"></script>
   <script src="/chain-rules.js"></script>

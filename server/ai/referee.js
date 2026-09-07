@@ -10,7 +10,7 @@
 const { generateJson } = require("./gemini");
 
 const MAX_WORD_LEN = 30;      // เท่ากับลิมิตตอนพิมพ์คำในเกม
-const MAX_REASON_LEN = 120;   // พอสำหรับหนึ่งประโยค ไม่ล้นการ์ด
+const MAX_REASON_LEN = 180;   // พอสำหรับหนึ่งประโยคไทย ไม่ล้นการ์ด
 
 const SCHEMA = {
   type: "object",
@@ -52,9 +52,10 @@ function buildPrompt(prevWord, word) {
 function parseOpinion(raw) {
   if (!raw || typeof raw !== "object") throw new Error("คำตอบกรรมการใช้ไม่ได้");
   if (typeof raw.linked !== "boolean") throw new Error("คำตอบกรรมการใช้ไม่ได้");
-  const reason = typeof raw.reason === "string"
-    ? raw.reason.replace(/\s+/g, " ").trim().slice(0, MAX_REASON_LEN)
-    : "";
+  let reason = typeof raw.reason === "string" ? raw.reason.replace(/\s+/g, " ").trim() : "";
+  // ภาษาไทยไม่มีช่องว่างระหว่างคำ ตัดตรงๆ แล้วดูเหมือนข้อความขาดหาย
+  // ใส่จุดไข่ปลาบอกให้รู้ว่ายังมีต่อ
+  if (reason.length > MAX_REASON_LEN) reason = reason.slice(0, MAX_REASON_LEN - 1) + "…";
   return { linked: raw.linked, reason: reason };
 }
 

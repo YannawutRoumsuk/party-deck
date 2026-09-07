@@ -17,6 +17,8 @@ const WWRoles = require("./games/werewolf/roles");
 const WWState = require("./games/werewolf/state");
 const TW = require("./games/twenty/match");
 const TWState = require("./games/twenty/state");
+const CH = require("./games/chain/rules");
+const CHState = require("./games/chain/state");
 const gemini = require("./ai/gemini");
 const referee = require("./ai/referee");
 const { createLimiter } = require("./ai/ratelimit");
@@ -201,7 +203,8 @@ function pushState(code) {
     numbers: (viewerId) => NState.roomView(room, viewerId),
     spyfall: (viewerId) => SFState.roomView(room, viewerId),
     werewolf: (viewerId) => WWState.roomView(room, viewerId),
-    twenty: (viewerId) => TWState.roomView(room, viewerId)
+    twenty: (viewerId) => TWState.roomView(room, viewerId),
+    chain: (viewerId) => CHState.roomView(room, viewerId)
   };
   const build = builders[room.gameType] || ((viewerId) => stateFor(room, viewerId));
 
@@ -1045,6 +1048,167 @@ io.on("connection", (socket) => {
     if (!ctx.room.twentyGame) return;
     TW.nextRound(ctx.room.twentyGame);
     ctx.room.twentyGame.wasRejected = false;
+    pushState(ctx.code);
+  });
+
+  // ---------- คำต้องเชื่อม ----------
+  //
+  // นาฬิกาต่อคำ 10 วิ อยู่ที่ server เป็นคนตัดสิน ไม่ใช่ต่างคนต่างนับ
+  // ไม่งั้นเครื่องที่ช้ากว่าจะเห็นว่าตัวเองยังทัน แต่เครื่องอื่นเห็นว่าตกรอบไปแล้ว
+
+  function chCtx(roomCode, opts) {
+    const ctx = contextOf(socket, roomCode, opts);
+    if (ctx.error) return ctx;
+    if (ctx.room.gameType !== "chain") return { error: "ห้องนี้ไม่ใช่เกมคำต้องเชื่อม" };
+    return ctx;
+  }
+
+  function commitChain(room) {
+    const g = room.chainGame;
+    if (!g) return;
+    for (const gp of g.players) {
+      const rp = room.players.get(gp.id);
+      if (rp) rp.score = gp.score;
+    }
+  }
+
+  socket.on("chain-settings", ({ roomCode, aiReferee }) => {
+    const ctx = chCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    // เปิดกรรมการได้เฉพาะตอนที่ server มี key จริง ไม่งั้นกดแล้วพัง
+    ctx.room.chainSettings = { aiReferee: !!aiReferee && gemini.hasKey() };
+    pushState(ctx.code);
+  });
+
+  socket.on("chain-start", ({ roomCode }) => {
+    const ctx = chCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+
+    const seated = [...ctx.room.players.values()].filter((p) => p.connected);
+    try {
+      ctx.room.chainGame = CH.createGame(
+        seated.map((p) => ({ id: p.id, name: p.name })),
+        { aiReferee: ctx.room.chainSettings.aiReferee }
+      );
+      ctx.room.chainGame.deadline = Date.now() + CH.TURN_MS;
+      for (const gp of ctx.room.chainGame.players) {
+        const rp = ctx.room.players.get(gp.id);
+        if (rp) gp.score = rp.score;
+      }
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+
+    announce(ctx.code, "chain-started", {});
+    pushState(ctx.code);
+  });
+
+  socket.on("chain-word", ({ roomCode, word }) => {
+    const ctx = chCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.chainGame) return;
+
+    const g = ctx.room.chainGame;
+    const cur = CH.currentPlayer(g);
+    if (!cur || cur.id !== ctx.player.id) return fail(socket, "ยังไม่ถึงตาคุณ");
+
+    try {
+      CH.submitWord(g, ctx.player.id, String(word || ""));
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    commitChain(ctx.room);
+    pushState(ctx.code);
+  });
+
+  // หมดเวลาต่อคำ — โฮสต์ยิงคนเดียว กันยิงซ้ำจากหลายเครื่อง
+  socket.on("chain-timeout", ({ roomCode }) => {
+    const ctx = chCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return;
+    if (!ctx.room.chainGame || ctx.room.chainGame.phase !== "playing") return;
+    CH.timeout(ctx.room.chainGame);
+    commitChain(ctx.room);
+    pushState(ctx.code);
+  });
+
+  socket.on("chain-challenge", ({ roomCode }) => {
+    const ctx = chCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.chainGame) return;
+    try {
+      CH.startChallenge(ctx.room.chainGame, ctx.player.id);
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    announce(ctx.code, "chain-challenged", { name: ctx.player.name });
+    pushState(ctx.code);
+  });
+
+  socket.on("chain-vote", ({ roomCode, linked }) => {
+    const ctx = chCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.chainGame) return;
+    try {
+      CH.vote(ctx.room.chainGame, ctx.player.id, !!linked);
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    pushState(ctx.code);
+  });
+
+  socket.on("chain-resolve", ({ roomCode }) => {
+    const ctx = chCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.chainGame) return;
+    try {
+      CH.resolveChallenge(ctx.room.chainGame);
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    commitChain(ctx.room);
+    pushState(ctx.code);
+  });
+
+  // กรรมการ AI — ย้ายมาอยู่ฝั่ง server เพราะตอนนี้เกมเป็นออนไลน์แล้ว
+  // ทุกคนต้องเห็นความเห็นเดียวกัน ไม่ใช่ต่างคนต่างยิงไปถามเอง
+  socket.on("chain-referee", async ({ roomCode }) => {
+    const ctx = chCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    const g = ctx.room.chainGame;
+    if (!g || !CH.canAskReferee(g)) return fail(socket, "ตอนนี้เรียกกรรมการไม่ได้");
+    if (!gemini.hasKey()) return fail(socket, "ยังไม่ได้เปิดใช้กรรมการ AI");
+
+    const gate = refereeLimit.take(socket.handshake.address || "unknown");
+    if (!gate.ok) {
+      return fail(socket, gate.reason === "daily"
+        ? "กรรมการ AI ใช้ครบโควตาวันนี้แล้ว วันนี้ให้คนโหวตกันเองนะ"
+        : "เรียกกรรมการถี่เกินไป รอสักครู่");
+    }
+
+    const chain = g.chain;
+    const prev = chain.length > 1 ? chain[chain.length - 2].word : chain[0].word;
+    const word = g.challenge.word;
+
+    try {
+      const opinion = await referee.askReferee(prev, word);
+      // ระหว่างรอ AI ตอบ ชาเลนจ์อาจถูกปิดไปแล้ว ต้องเช็คอีกรอบก่อนเขียนผล
+      if (ctx.room.chainGame === g && CH.canAskReferee(g)) {
+        CH.applyRefereeOpinion(g, opinion);
+        announce(ctx.code, "chain-referee-said", {});
+        pushState(ctx.code);
+      }
+    } catch (err) {
+      console.error("[chain-referee]", err.code || "", err.message);
+      fail(socket, "กรรมการไม่ว่าง ให้คนโหวตกันต่อได้เลย");
+    }
+  });
+
+  socket.on("chain-next-round", ({ roomCode }) => {
+    const ctx = chCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.chainGame) return;
+    CH.nextRound(ctx.room.chainGame);
+    commitChain(ctx.room);
     pushState(ctx.code);
   });
 

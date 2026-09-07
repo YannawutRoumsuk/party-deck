@@ -29,14 +29,21 @@
     return SEED_WORDS[Math.floor(Math.random() * SEED_WORDS.length)];
   }
 
-  function createGame(playerNames, options) {
+  /**
+   * @param {Array} entries ชื่อผู้เล่น หรือ { id, name } ถ้าอยากกำหนด id เอง
+   *
+   * โหมดเครื่องเดียวส่งแค่ชื่อมา ระบบตั้ง id ให้เป็น p0 p1 ...
+   * โหมดออนไลน์ต้องส่ง id จริงของห้อง เพราะ state ต้องผูกกับตัวตนที่ข้ามการ reconnect ได้
+   */
+  function createGame(entries, options) {
     var opts = options || {};
-    if (playerNames.length < 3) throw new Error("เกมนี้ต้องมีอย่างน้อย 3 คน");
+    if (entries.length < 3) throw new Error("เกมนี้ต้องมีอย่างน้อย 3 คน");
 
-    var players = playerNames.map(function (name, i) {
+    var players = entries.map(function (e, i) {
+      var isObj = e && typeof e === "object";
       return {
-        id: "p" + i,
-        name: name,
+        id: isObj && e.id ? String(e.id) : "p" + i,
+        name: isObj ? String(e.name || "") : String(e),
         alive: true,
         score: 0,
         canChallenge: true,   // ชาเลนจ์แพ้แล้วหมดสิทธิ์ทั้งรอบ
