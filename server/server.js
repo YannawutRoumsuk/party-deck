@@ -15,6 +15,8 @@ const SFState = require("./games/spyfall/state");
 const WW = require("./games/werewolf/rules");
 const WWRoles = require("./games/werewolf/roles");
 const WWState = require("./games/werewolf/state");
+const TW = require("./games/twenty/match");
+const TWState = require("./games/twenty/state");
 const gemini = require("./ai/gemini");
 const referee = require("./ai/referee");
 const { createLimiter } = require("./ai/ratelimit");
@@ -198,7 +200,8 @@ function pushState(code) {
   const builders = {
     numbers: (viewerId) => NState.roomView(room, viewerId),
     spyfall: (viewerId) => SFState.roomView(room, viewerId),
-    werewolf: (viewerId) => WWState.roomView(room, viewerId)
+    werewolf: (viewerId) => WWState.roomView(room, viewerId),
+    twenty: (viewerId) => TWState.roomView(room, viewerId)
   };
   const build = builders[room.gameType] || ((viewerId) => stateFor(room, viewerId));
 
@@ -298,7 +301,10 @@ io.on("connection", (socket) => {
       const label = {
         numbers: "เกมทายเลข",
         spyfall: "เกม Spyfall",
-        werewolf: "เกมหมาป่า"
+        werewolf: "เกมหมาป่า",
+        twenty: "เกม 24 แต้ม",
+        chain: "เกมคำต้องเชื่อม",
+        guess: "เกมทายของ"
       }[room.gameType] || "เกมคำต้องห้าม";
       return socket.emit("wrong-game", {
         gameType: room.gameType,
@@ -341,6 +347,8 @@ io.on("connection", (socket) => {
 
     const limit = room.gameType === "numbers" ? cfg.MAX_PLAYERS_NUMBERS
       : room.gameType === "spyfall" ? SF.MAX_PLAYERS
+      : room.gameType === "twenty" ? 8
+      : room.gameType === "guess" ? 2
       : cfg.MAX_PLAYERS;
     if (room.players.size >= limit) {
       return fail(socket, `ห้องเต็มแล้ว (สูงสุด ${limit} คน)`);
@@ -891,6 +899,154 @@ io.on("connection", (socket) => {
     }
     pushState(ctx.code);
   }
+
+  // ---------- 24 แต้ม ----------
+  //
+  // เกมนี้ไม่มีความลับ ทุกคนเห็นไพ่ชุดเดียวกัน
+  // สิ่งที่ต้องคุมคือ "ใครกดอะไรได้ตอนไหน" ซึ่งกติกาใน match.js จัดการให้แล้ว
+  // หน้าที่ตรงนี้คือกันไม่ให้คนที่ไม่มีสิทธิ์ยิง event ข้ามขั้น
+
+  function twCtx(roomCode, opts) {
+    const ctx = contextOf(socket, roomCode, opts);
+    if (ctx.error) return ctx;
+    if (ctx.room.gameType !== "twenty") return { error: "ห้องนี้ไม่ใช่เกม 24 แต้ม" };
+    return ctx;
+  }
+
+  /** โอนคะแนนจากกระดานเกมเข้าคะแนนสะสมของห้อง แล้วล้างของเกมทิ้ง */
+  function commitTwenty(room) {
+    const g = room.twentyGame;
+    if (!g) return;
+    for (const gp of g.players) {
+      const rp = room.players.get(gp.id);
+      if (rp) rp.score = gp.score;
+    }
+  }
+
+  socket.on("twenty-settings", ({ roomCode, minSolutions }) => {
+    const ctx = twCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    const n = Number(minSolutions);
+    ctx.room.twentySettings = { minSolutions: Number.isFinite(n) ? Math.min(5, Math.max(1, n)) : 1 };
+    pushState(ctx.code);
+  });
+
+  socket.on("twenty-start", ({ roomCode }) => {
+    const ctx = twCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+
+    const seated = [...ctx.room.players.values()].filter((p) => p.connected);
+    if (seated.length < 2) return fail(socket, "ต้องมีอย่างน้อย 2 คนถึงจะเริ่มได้");
+
+    try {
+      ctx.room.twentyGame = TW.createGame(
+        seated.map((p) => ({ id: p.id, name: p.name })),
+        { minSolutions: ctx.room.twentySettings.minSolutions }
+      );
+      TW.nextRound(ctx.room.twentyGame);
+      // คะแนนสะสมเดิมของห้องยกมาต่อ ไม่ให้เริ่มเกมใหม่แล้วแต้มหาย
+      for (const gp of ctx.room.twentyGame.players) {
+        const rp = ctx.room.players.get(gp.id);
+        if (rp) gp.score = rp.score;
+      }
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+
+    announce(ctx.code, "twenty-started", {});
+    pushState(ctx.code);
+  });
+
+  socket.on("twenty-claim", ({ roomCode }) => {
+    const ctx = twCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.twentyGame) return;
+    try {
+      TW.claim(ctx.room.twentyGame, ctx.player.id);
+      ctx.room.twentyGame.wasRejected = false;
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    announce(ctx.code, "twenty-claimed", { name: ctx.player.name });
+    pushState(ctx.code);
+  });
+
+  socket.on("twenty-judge", ({ roomCode, accepted }) => {
+    const ctx = twCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.twentyGame) return;
+    const g = ctx.room.twentyGame;
+    // คนที่กดตอบเองตัดสินตัวเองไม่ได้ ไม่งั้นแจกแต้มให้ตัวเองได้ฟรี
+    if (g.claimerId === ctx.player.id) return fail(socket, "คนที่กดตอบตัดสินตัวเองไม่ได้");
+
+    try {
+      TW.judge(g, !!accepted);
+      g.wasRejected = !accepted;
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    if (g.phase === "roundEnd") commitTwenty(ctx.room);
+    pushState(ctx.code);
+  });
+
+  socket.on("twenty-submit", ({ roomCode, expression }) => {
+    const ctx = twCtx(roomCode);
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.twentyGame) return;
+    const g = ctx.room.twentyGame;
+    if (g.phase !== "typing") return fail(socket, "ตอนนี้ยังพิมพ์สูตรไม่ได้");
+    if (g.claimerId !== ctx.player.id) return fail(socket, "เฉพาะคนที่กดตอบเท่านั้นที่พิมพ์สูตรได้");
+
+    try {
+      TW.submitExpression(g, String(expression || "").slice(0, 120), !!g.wasRejected);
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    commitTwenty(ctx.room);
+    pushState(ctx.code);
+  });
+
+  // นาฬิกาให้โฮสต์เป็นคนคุม เพราะถ้าให้ทุกเครื่องยิงจะซ้ำกันหลายรอบ
+  socket.on("twenty-speak-timeout", ({ roomCode }) => {
+    const ctx = twCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.twentyGame) return;
+    if (ctx.room.twentyGame.phase !== "claimed") return;
+    TW.speakTimeout(ctx.room.twentyGame);
+    commitTwenty(ctx.room);
+    pushState(ctx.code);
+  });
+
+  socket.on("twenty-judge-timeout", ({ roomCode }) => {
+    const ctx = twCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.twentyGame) return;
+    if (ctx.room.twentyGame.phase !== "claimed") return;
+    TW.judgeTimeout(ctx.room.twentyGame);
+    ctx.room.twentyGame.wasRejected = false;
+    pushState(ctx.code);
+  });
+
+  socket.on("twenty-skip", ({ roomCode }) => {
+    const ctx = twCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.twentyGame) return;
+    try {
+      TW.skipRound(ctx.room.twentyGame);
+    } catch (err) {
+      return fail(socket, err.message);
+    }
+    pushState(ctx.code);
+  });
+
+  socket.on("twenty-next", ({ roomCode }) => {
+    const ctx = twCtx(roomCode, { hostOnly: true });
+    if (ctx.error) return fail(socket, ctx.error);
+    if (!ctx.room.twentyGame) return;
+    TW.nextRound(ctx.room.twentyGame);
+    ctx.room.twentyGame.wasRejected = false;
+    pushState(ctx.code);
+  });
 
   socket.on("leave-room", ({ roomCode }) => {
     const ctx = contextOf(socket, roomCode);

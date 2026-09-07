@@ -25,10 +25,21 @@
   var POINT_FOUL = -1;       // กดตอบแล้วผิด หรือหมดเวลาพูด
   var POINT_BAD_REJECT = -1; // ปัดตกคำตอบที่ถูกจริง
 
-  function createGame(playerNames, options) {
+  /**
+   * @param {Array} entries ชื่อผู้เล่น หรือ { id, name } ถ้าอยากกำหนด id เอง
+   *
+   * โหมดเครื่องเดียวส่งแค่ชื่อมา ระบบตั้ง id ให้เป็น p0 p1 ...
+   * โหมดออนไลน์ต้องส่ง id จริงของห้องมาด้วย เพราะ state ต้องผูกกับตัวตนที่ข้ามการ reconnect ได้
+   */
+  function createGame(entries, options) {
     var opts = options || {};
-    var players = playerNames.map(function (name, i) {
-      return { id: "p" + i, name: name, score: 0, correct: 0, fouls: 0 };
+    var players = entries.map(function (e, i) {
+      var isObj = e && typeof e === "object";
+      return {
+        id: isObj && e.id ? String(e.id) : "p" + i,
+        name: isObj ? String(e.name || "") : String(e),
+        score: 0, correct: 0, fouls: 0
+      };
     });
 
     return {

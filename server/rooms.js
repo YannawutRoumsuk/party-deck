@@ -67,7 +67,7 @@ function createRoom(rooms, gameType) {
   const room = {
     code,
     // ห้องสองเกมอยู่ใน Map เดียวกัน ต้องรู้ว่าเป็นเกมไหนเพื่อกันเข้าผิดเกม
-    gameType: ["numbers", "spyfall", "werewolf"].indexOf(gameType) >= 0 ? gameType : "forbidden",
+    gameType: ["numbers", "spyfall", "werewolf", "twenty", "chain", "guess"].indexOf(gameType) >= 0 ? gameType : "forbidden",
     spectatorKey: randomSpectatorKey(),
     hostId: null,
     players: new Map(),   // playerId -> player
@@ -95,7 +95,19 @@ function createRoom(rooms, gameType) {
 
     // ใช้เฉพาะหมาป่า
     werewolfSettings: { presetId: "starter", comp: null },
-    werewolfGame: null
+    werewolfGame: null,
+
+    // ใช้เฉพาะ 24 แต้ม
+    twentySettings: { minSolutions: 1 },
+    twentyGame: null,
+
+    // ใช้เฉพาะคำต้องเชื่อม
+    chainSettings: { aiReferee: false },
+    chainGame: null,
+
+    // ใช้เฉพาะทายของ 20 คำถาม
+    guessSettings: { packId: null, level: "common" },
+    guessMatch: null
   };
   rooms.set(code, room);
   return room;

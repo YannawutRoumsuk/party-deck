@@ -25,17 +25,31 @@
       </p>
     </section>
 
-    <section class="card card-hot">
-      <header>
-        <h2>ใครเล่นบ้าง</h2>
-        <p class="faint">อย่างน้อย 2 คน วางเครื่องไว้กลางวงให้ทุกคนเห็นจอ</p>
-      </header>
-      <div id="playerInputs" class="stack" style="gap:0.5rem"></div>
-      <div class="row">
-        <button id="btnAddPlayer" class="ghost">เพิ่มคน</button>
-        <button id="btnRemovePlayer" class="ghost">ลดคน</button>
-      </div>
-    </section>
+    <div class="grid2">
+      <section class="card card-hot">
+        <header><h2>สร้างห้อง</h2></header>
+        <div>
+          <label for="createName">ชื่อของคุณ</label>
+          <input id="createName" maxlength="24" placeholder="เช่น ต้น" autocomplete="nickname" />
+        </div>
+        <button id="btnCreate" class="primary block">สร้างห้อง</button>
+        <p id="createMsg" class="faint" role="status"></p>
+      </section>
+
+      <section class="card">
+        <header><h2>เข้าห้องเพื่อน</h2></header>
+        <div>
+          <label for="joinCode">รหัสห้อง</label>
+          <input id="joinCode" class="code-input" maxlength="5" placeholder="ABCD2" autocomplete="off" autocapitalize="characters" />
+        </div>
+        <div>
+          <label for="joinName">ชื่อของคุณ</label>
+          <input id="joinName" maxlength="24" placeholder="เช่น เจได" autocomplete="nickname" />
+        </div>
+        <button id="btnJoin" class="volt block">เข้าห้อง</button>
+        <p id="joinMsg" class="faint" role="status"></p>
+      </section>
+    </div>
 
     <section class="card">
       <header><h2>ความยาก</h2></header>
@@ -47,7 +61,6 @@
           <b>ง่าย</b><span class="faint">เฉพาะชุดที่มีทางออกเยอะ คิดออกไว</span>
         </button>
       </div>
-      <button id="btnStart" class="primary block">เริ่มเล่น</button>
     </section>
 
     <section class="card">
@@ -72,14 +85,38 @@
   <main id="screenPlay" class="container stack-lg" hidden>
     <header class="topbar" style="border-radius:var(--r-lg);margin-bottom:var(--gap)">
       <div class="grow">
-        <div class="room-tag">ชุดที่ <span id="roundNo">1</span></div>
+        <div class="room-tag">ห้อง <span id="roomCode">-----</span> · ชุดที่ <span id="roundNo">1</span></div>
         <div class="faint" id="solutionHint">-</div>
       </div>
       <div id="clock" class="timer idle">--</div>
     </header>
 
     <!-- ไพ่ 4 ใบ -->
-    <section class="card">
+    <section id="lobbyCard" class="card card-hot" hidden>
+      <header>
+        <h2>รอคนครบ</h2>
+        <p class="faint">อย่างน้อย 2 คน · สแกน QR หรือบอกรหัสห้องให้เพื่อน</p>
+      </header>
+      <div id="qrInvite" class="qr-invite"></div>
+      <div class="row">
+        <button id="btnCopyCode" class="ghost grow">คัดลอกลิงก์ชวนเพื่อน</button>
+      </div>
+      <div id="lobbyPlayers" class="stack" style="gap:0.4rem"></div>
+      <div id="hostSetup" hidden>
+        <div class="choice-grid">
+          <button class="choice" data-diff="1" aria-pressed="true">
+            <b>ปกติ</b><span class="faint">ชุดไหนก็ได้ที่ทำ 24 ได้อย่างน้อย 1 วิธี</span>
+          </button>
+          <button class="choice" data-diff="6" aria-pressed="false">
+            <b>ง่าย</b><span class="faint">เฉพาะชุดที่มีทางออกเยอะ คิดออกไว</span>
+          </button>
+        </div>
+        <button id="btnStart" class="primary block">เริ่มเล่น</button>
+      </div>
+      <p id="waitHostMsg" class="faint" hidden>รอโฮสต์กดเริ่ม</p>
+    </section>
+
+    <section id="cardsCard" class="card" hidden>
       <div id="cards" class="card-row"></div>
       <p class="faint center" id="cardsHint">ใครคิดออกก่อน กดปุ่มชื่อตัวเองด้านล่าง</p>
     </section>
@@ -87,8 +124,8 @@
     <!-- ปุ่มกดตอบของแต่ละคน -->
     <section id="buzzCard" class="card">
       <header><h2>กดตอบ</h2></header>
-      <div id="buzzers" class="buzz-grid"></div>
-      <button id="btnSkip" class="ghost block">ไม่มีใครคิดออก ข้ามชุดนี้</button>
+      <button id="btnBuzz" class="primary block buzz-big">คิดออกแล้ว!</button>
+      <button id="btnSkip" class="ghost block" hidden>ไม่มีใครคิดออก ข้ามชุดนี้</button>
     </section>
 
     <!-- กำลังพูด รอตัดสิน -->
@@ -143,6 +180,9 @@
 
   <div id="toasts" class="toast-wrap" aria-live="polite"></div>
 
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/store.js"></script>
+  <script src="/qr.js"></script>
   <script src="/twenty-rules.js"></script>
   <script src="/twenty-match.js"></script>
   <script src="/ui.js"></script>
